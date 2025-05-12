@@ -59,7 +59,6 @@ Proof. apply transitivity. Defined.
 Definition eq_setoid X := Setoid.build X eq eq_equivalence.
 Canonical unit_setoid := eq_setoid unit.
 Canonical bool_setoid := eq_setoid bool.
-Canonical nat_setoid := eq_setoid nat.
 Canonical False_setoid := eq_setoid False.
 
 Canonical Structure Prop_setoid := Setoid.build Prop iff _.
@@ -191,7 +190,7 @@ Next Obligation.
 Qed.
 
 (** category of types and functions *)
-Program Canonical TYPES: CATEGORY :=
+Program Definition TYPES: CATEGORY :=
   {|
     ob := Type;
     hom A B := eq_setoid (A -> B);
@@ -199,17 +198,8 @@ Program Canonical TYPES: CATEGORY :=
     comp _ _ _ f g := fun x => f (g x);
   |}.
 
-(** category of setoids and setoid morphisms *)
-Program Canonical SETOIDS: CATEGORY :=
-  {|
-    ob := Setoid;
-    hom := setoid_morphisms_setoid;
-    id := @Setoid.id;
-    comp := @Setoid.comp;
-  |}.
-
 (** single object/morphism category *)
-Program Canonical UNIT: CATEGORY :=
+Program Definition UNIT: CATEGORY :=
   {|
     ob := unit;
     hom _ _ := unit;
@@ -310,13 +300,13 @@ End universal.
 
 
 (** * functors *)
-Structure FUNCTOR (𝐂 𝐃: CATEGORY) :=
+Record FUNCTOR (𝐂 𝐃: CATEGORY) :=
   {
     app':> 𝐂 -> 𝐃;
-#[canonical=no] app: forall {A B}, 𝐂 A B -> 𝐃 (app' A) (app' B);
-#[canonical=no] app_eqv:: forall {A B}, Proper (eqv ==> eqv) (@app A B);
-#[canonical=no] app_id: forall {A}, app (id: A ~> A) ≡ id;
-#[canonical=no] app_comp: forall {U V W} (f: U ~> V) (g: V ~> W), app (g ∘ f) ≡ app g ∘ app f;
+    app: forall {A B}, 𝐂 A B -> 𝐃 (app' A) (app' B);
+    app_eqv:: forall {A B}, Proper (eqv ==> eqv) (@app A B);
+    app_id: forall {A}, app (id: A ~> A) ≡ id;
+    app_comp: forall {U V W} (f: U ~> V) (g: V ~> W), app (g ∘ f) ≡ app g ∘ app f;
   }.
 
 Program Definition functor_id {𝐂}: FUNCTOR 𝐂 𝐂 :=
@@ -498,30 +488,31 @@ Section coalgebra.
 End coalgebra.
 Arguments coalg {_ _ _}.
 
-(** ** endofunctors on Types *)
+
+(** ** endofunctors on TYPES *)
 Notation TFUNCTOR := (FUNCTOR TYPES TYPES).
 
 (** X^A *)
-Program Canonical Structure TF_exp A: TFUNCTOR :=
+Program Definition TF_exp A: TFUNCTOR :=
   {| app' X := (A -> X); app X Y f g := comp f g |}.
 
 Axiom fun_ext: forall A B (f g: A -> B), (forall a, f a = g a) -> f = g. (* TOTHINK: or do ETYPES *)
 Axiom prop_ext: forall A B: Prop, (A <-> B) -> A = B. 
 
 (** option *)
-Program Canonical Structure TF_option: TFUNCTOR :=
+Program Definition TF_option: TFUNCTOR :=
   {| app' := option; app := Option.map |}.
 Next Obligation. by apply fun_ext=>[[|]]. Qed.
 Next Obligation. by apply fun_ext=>[[|]]. Qed.
 
 (** list *)
-Program Canonical Structure TF_list: TFUNCTOR :=
+Program Definition TF_list: TFUNCTOR :=
   {| app' := list; app := List.map |}.
 Next Obligation. apply fun_ext; elim=>/=; congruence. Qed.
 Next Obligation. apply fun_ext; elim=>/=; congruence. Qed.
 
 (** powerset *)
-Program Canonical Structure TF_pow: TFUNCTOR :=
+Program Definition TF_pow: TFUNCTOR :=
   {| app' X := (X -> Prop); app X Y f S := fun y => exists x, S x /\ y = f x |}.
 Next Obligation.
   apply fun_ext=>S;  apply fun_ext=>y.
@@ -533,6 +524,8 @@ Next Obligation.
   apply prop_ext; split; move=>[x [Hx ->]]; eauto.
   destruct Hx as [? [? ->]]; eauto.
 Qed.
+
+Inductive nat := O | S(n: nat). 
 
 Definition nat_alg: ALGEBRA TF_option.
   exists nat. case. exact S. exact O.
@@ -547,20 +540,103 @@ Proof.
     by apply fun_ext=>[[|]].
   - simpl. intros X g. apply fun_ext.
     elim=>/=[|n IH]. apply (f_equal (fun f => f None) (algE g)).
-    setoid_rewrite (f_equal (fun f => f (Some _)) (algE g)). simpl.
-    by setoid_rewrite IH.
+    rewrite -IH. apply (f_equal (fun f => f (Some _)) (algE g)). 
 Qed.
 
 (* TODO: fails for coinductives (= need even more axioms) *)
 
-(** ** endofunctors on Setoids *)
+
+(** ** endofunctors on ETYPES *)
+
+
+(** category of types and extensional functions *)
+Program Definition ETYPES: CATEGORY :=
+  {|
+    ob := Type;
+    hom A B := dprod_setoid (fun _: A => eq_setoid B);
+    id _ := fun x => x;
+    comp _ _ _ f g := fun x => f (g x);
+  |}.
+Next Obligation.
+  intros f f' ff g g' gg a. by rewrite ff gg.
+Qed.
+
+Notation EFUNCTOR := (FUNCTOR ETYPES ETYPES).
+
+(** X^A *)
+Program Definition EF_exp A: EFUNCTOR :=
+  {| app' X := (A -> X); app X Y f g := comp f g |}.
+Next Obligation.
+  intros f g fg h. apply fun_ext=>a. apply fg. (* still need [fun_ext] *)
+Qed.
+
+(** option *)
+Program Definition EF_option: EFUNCTOR :=
+  {| app' := option; app := Option.map |}.
+Next Obligation. intros f g fg [a|]=>//=. f_equal; apply fg. Qed.
+Next Obligation. by case a. Qed.
+Next Obligation. by case a. Qed.
+
+(** list *)
+Program Definition EF_list: EFUNCTOR :=
+  {| app' := list; app := List.map |}.
+Next Obligation. intros f g fg. elim=> [|a q IH]=>//=. by f_equal. Qed.
+Next Obligation. elim a=>/=; congruence. Qed.
+Next Obligation. elim a=>/=; congruence. Qed.
+
+(** powerset *)
+Program Definition EF_pow: EFUNCTOR :=
+  {| app' X := (X -> Prop); app X Y f S := fun y => exists x, S x /\ y = f x |}.
+Next Obligation.
+  intros f g fg S. apply: fun_ext=>b. apply: prop_ext. (* still need [fun_ext] and [prop_ext] *)
+  by setoid_rewrite fg.
+Qed.
+Next Obligation.
+  apply fun_ext=>x. apply prop_ext; split=>H; eauto.
+  by destruct H as [? [Sy <-]]. 
+Qed.
+Next Obligation.
+  apply fun_ext=>w.
+  apply prop_ext; split; move=>[x [Hx ->]]; eauto.
+  destruct Hx as [? [? ->]]; eauto.
+Qed.
+
+Definition nat_alg': ALGEBRA EF_option.
+  exists nat. case. exact S. exact O.
+Defined.
+
+Lemma init_nat_alg': initial nat_alg'.
+Proof.
+  unshelve eapply Build_initial'.
+  - intro f. unshelve eexists. 
+    elim. exact (alg_bod f None).
+    intros _ x. exact (alg_bod f (Some x)).
+    by case. 
+  - simpl. intros X g.
+    elim=>/=[|n IH]. apply (algE g None).
+    rewrite -IH. apply (algE g (Some _)).
+Qed.
+
+(* TODO: fails for coinductives (= need even more axioms) *)
+
+(** ** endofunctors on SETOIDS *)
+
+(** category of setoids and setoid morphisms *)
+Program Definition SETOIDS: CATEGORY :=
+  {|
+    ob := Setoid;
+    hom := setoid_morphisms_setoid;
+    id := @Setoid.id;
+    comp := @Setoid.comp;
+  |}.
+
 Notation SFUNCTOR := (FUNCTOR SETOIDS SETOIDS).
 
 (** X^A *)
 Program Canonical Structure SF_power (A: Setoid): SFUNCTOR :=
   {| app' X := setoid_morphisms_setoid A X; app X Y f := _ |}.
 Next Obligation.
-  exists (fun g => f ∘ g). by apply comp_eqv_. 
+  exists (fun g => Setoid.comp f g). by apply comp_eqv_. 
 Defined.
 Next Obligation. intros ?? H??. apply (H _). Qed.
 
@@ -583,15 +659,36 @@ Next Obligation. intros f g fg l. cbn. induction l; try split; trivial. Qed.
 Next Obligation. induction a; split; trivial. Qed.
 Next Obligation. induction a; split; trivial. Qed.
 
-(* TODO: powerset functor *)
+(** powerset *)
+Program Definition SF_pow: SFUNCTOR :=
+  {| app' X := ((X -eqv-> Prop): Setoid); app X Y f := _ |}.
+Next Obligation.
+  unshelve eexists. intro S.
+  exists (fun y => exists x, S x /\ y ≡ f x).
+  move=>y y' yy/=. abstract by setoid_rewrite yy. 
+  move=>S T ST y/=. abstract (split; move=>[x [Sx E]]; exists x; split=>//; by apply ST).
+Defined.
+Next Obligation.
+  intros f g fg S b; simpl.
+  by setoid_rewrite fg.
+Qed.
+Next Obligation.
+  split=>H; eauto.
+  by destruct H as [? [Sy ->]].
+Qed.
+Next Obligation.
+  split; move=>[x [Hx E]]; eauto.
+  destruct Hx as [u [Hu F]]. exists u. split=>//.
+  by rewrite -F.
+Qed.
 
-Definition nat_alg': ALGEBRA SF_option.
+Definition nat_alg'': ALGEBRA SF_option.
   exists (eq_setoid nat). unshelve eexists.
   case. exact S. exact O.
   move=>[a|] [b|]//=; congruence. 
 Defined.
 
-Lemma init_nat_alg': initial nat_alg'.
+Lemma init_nat_alg'': initial nat_alg''.
 Proof.
   unshelve eapply Build_initial'.
   - intro f. unshelve eexists. unshelve eexists. 
