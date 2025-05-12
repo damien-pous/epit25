@@ -45,3 +45,20 @@ The Rocq proof assistant provides inductive and coinductive datatypes. However, 
 During this course we will present tools that make it possible to work efficiently with bisimilarity (or any coinductive predicate), and show how to obtain final coalgebras from coinductive types.
 
 Bring you computer: the course will be based on Rocq exercises.
+
+
+# Difficultés
+
+- besoin de setoid-cats avant-même d'atteindre les coinductifs, pour pouvoir faire sans axiome la catégorie des algèbres (ou coalgèbres): il faut oublier les preuves que les homomorphismes en sont.
+
+- besoin de funext (+ propext) pour définir les foncteurs de base dans TYPES -> faire ETYPES ?
+
+- si on garde le flow 
+     1. cats-algèbres-coalgèbres
+	 2. bisim pour coinductifs
+	 3. companion/tower
+	 4. bisim pour CCS
+  -- alors il faut faire 2. à la mano -> en CoInductive, ou en imprédicatif (= union des bisimulations) ?
+  -- on l'avait déjà remarqué je crois, mais on ne reboucle pas sur 1. avec 4. car le foncteur naturel pour CCS n'a pas de coalgèbre finale :-/
+  
+  
