@@ -7,6 +7,9 @@ Unset Transparent Obligations.
 Set Primitive Projections.
 Set Universe Polymorphism.
 
+Axiom fun_ext: forall A B (f g: A -> B), (forall a, f a = g a) -> f = g.
+Axiom prop_ext: forall A B: Prop, (A <-> B) -> A = B. 
+
 Definition const {X Y} y: X -> Y := fun _ => y.
 Arguments const {_ _} _ _/.
 
@@ -488,31 +491,30 @@ Section coalgebra.
 End coalgebra.
 Arguments coalg {_ _ _}.
 
-
+(** * case-study in the category of types and functions *)
+Module TYPES.
+       
 (** ** endofunctors on TYPES *)
-Notation TFUNCTOR := (FUNCTOR TYPES TYPES).
+Notation FUNCTOR := (FUNCTOR TYPES TYPES).
 
 (** X^A *)
-Program Definition TF_exp A: TFUNCTOR :=
+Program Definition F_exp A: FUNCTOR :=
   {| app' X := (A -> X); app X Y f g := comp f g |}.
 
-Axiom fun_ext: forall A B (f g: A -> B), (forall a, f a = g a) -> f = g. (* TOTHINK: or do ETYPES *)
-Axiom prop_ext: forall A B: Prop, (A <-> B) -> A = B. 
-
 (** option *)
-Program Definition TF_option: TFUNCTOR :=
+Program Definition F_option: FUNCTOR :=
   {| app' := option; app := Option.map |}.
 Next Obligation. by apply fun_ext=>[[|]]. Qed.
 Next Obligation. by apply fun_ext=>[[|]]. Qed.
 
 (** list *)
-Program Definition TF_list: TFUNCTOR :=
+Program Definition F_list: FUNCTOR :=
   {| app' := list; app := List.map |}.
 Next Obligation. apply fun_ext; elim=>/=; congruence. Qed.
 Next Obligation. apply fun_ext; elim=>/=; congruence. Qed.
 
 (** powerset *)
-Program Definition TF_pow: TFUNCTOR :=
+Program Definition F_pow: FUNCTOR :=
   {| app' X := (X -> Prop); app X Y f S := fun y => exists x, S x /\ y = f x |}.
 Next Obligation.
   apply fun_ext=>S;  apply fun_ext=>y.
@@ -525,9 +527,11 @@ Next Obligation.
   destruct Hx as [? [? ->]]; eauto.
 Qed.
 
+(** ** natural unary numbers form the initial algebra of the [option] functor *)
+
 Inductive nat := O | S(n: nat). 
 
-Definition nat_alg: ALGEBRA TF_option.
+Definition nat_alg: ALGEBRA F_option.
   exists nat. case. exact S. exact O.
 Defined.
 
@@ -543,11 +547,31 @@ Proof.
     rewrite -IH. apply (f_equal (fun f => f (Some _)) (algE g)). 
 Qed.
 
-(* TODO: fails for coinductives (= need even more axioms) *)
+(** ** `conatural unary numbers' almost form the final coalgebra of the [option] functor *)
+
+CoInductive conat := coO | coS(n: conat). 
+
+Definition conat_coalg: COALGEBRA F_option.
+  exists conat. case. exact None. exact Some.
+Defined.
+
+Lemma final_conat_coalg: final conat_coalg.
+Proof.
+  split. 
+  - intro f. unshelve eexists; cbn.
+    cofix CH. intro x. destruct (coalg_bod f x) as [c|].
+    apply coS, CH, c.
+    apply coO.
+    apply fun_ext=>x. by destruct (coalg_bod f x). 
+  - intros X f g.
+    admit.
+Abort.
+
+End TYPES.
 
 
-(** ** endofunctors on ETYPES *)
-
+(** * case-study in the category of types and *extenstional* functions *)
+Module ETYPES.
 
 (** category of types and extensional functions *)
 Program Definition ETYPES: CATEGORY :=
@@ -561,31 +585,32 @@ Next Obligation.
   intros f f' ff g g' gg a. by rewrite ff gg.
 Qed.
 
-Notation EFUNCTOR := (FUNCTOR ETYPES ETYPES).
+(** ** endofunctors on ETYPES *)
+Notation FUNCTOR := (FUNCTOR ETYPES ETYPES).
 
 (** X^A *)
-Program Definition EF_exp A: EFUNCTOR :=
+Program Definition F_exp A: FUNCTOR :=
   {| app' X := (A -> X); app X Y f g := comp f g |}.
 Next Obligation.
   intros f g fg h. apply fun_ext=>a. apply fg. (* still need [fun_ext] *)
 Qed.
 
 (** option *)
-Program Definition EF_option: EFUNCTOR :=
+Program Definition F_option: FUNCTOR :=
   {| app' := option; app := Option.map |}.
 Next Obligation. intros f g fg [a|]=>//=. f_equal; apply fg. Qed.
 Next Obligation. by case a. Qed.
 Next Obligation. by case a. Qed.
 
 (** list *)
-Program Definition EF_list: EFUNCTOR :=
+Program Definition F_list: FUNCTOR :=
   {| app' := list; app := List.map |}.
 Next Obligation. intros f g fg. elim=> [|a q IH]=>//=. by f_equal. Qed.
 Next Obligation. elim a=>/=; congruence. Qed.
 Next Obligation. elim a=>/=; congruence. Qed.
 
 (** powerset *)
-Program Definition EF_pow: EFUNCTOR :=
+Program Definition F_pow: FUNCTOR :=
   {| app' X := (X -> Prop); app X Y f S := fun y => exists x, S x /\ y = f x |}.
 Next Obligation.
   intros f g fg S. apply: fun_ext=>b. apply: prop_ext. (* still need [fun_ext] and [prop_ext] *)
@@ -601,11 +626,15 @@ Next Obligation.
   destruct Hx as [? [? ->]]; eauto.
 Qed.
 
-Definition nat_alg': ALGEBRA EF_option.
+(** ** natural unary numbers form the initial algebra of the [option] functor *)
+
+Inductive nat := O | S(n: nat). 
+
+Definition nat_alg: ALGEBRA F_option.
   exists nat. case. exact S. exact O.
 Defined.
 
-Lemma init_nat_alg': initial nat_alg'.
+Lemma init_nat_alg: initial nat_alg.
 Proof.
   unshelve eapply Build_initial'.
   - intro f. unshelve eexists. 
@@ -617,9 +646,33 @@ Proof.
     rewrite -IH. apply (algE g (Some _)).
 Qed.
 
-(* TODO: fails for coinductives (= need even more axioms) *)
+(** ** `conatural unary numbers' almost form the final coalgebra of the [option] functor *)
 
-(** ** endofunctors on SETOIDS *)
+CoInductive conat := coO | coS(n: conat). 
+
+Definition conat_coalg: COALGEBRA F_option.
+  exists conat. case. exact None. exact Some.
+Defined.
+
+Lemma final_conat_coalg: final conat_coalg.
+Proof.
+  split. 
+  - intro f. unshelve eexists; cbn.
+    cofix CH. intro x. destruct (coalg_bod f x) as [c|].
+    apply coS, CH, c.
+    apply coO.
+    intro x; simpl. by destruct (coalg_bod f x). 
+  - intros X f g.
+    cbn. 
+    intro x.                    (* does not help *)
+Abort.
+
+End ETYPES.
+
+
+(** * case-study in the category of setoids and setoid morphisms *)
+
+Module SETOIDS.
 
 (** category of setoids and setoid morphisms *)
 Program Definition SETOIDS: CATEGORY :=
@@ -630,10 +683,11 @@ Program Definition SETOIDS: CATEGORY :=
     comp := @Setoid.comp;
   |}.
 
-Notation SFUNCTOR := (FUNCTOR SETOIDS SETOIDS).
+(** ** endofunctors on SETOIDS *)
+Notation FUNCTOR := (FUNCTOR SETOIDS SETOIDS).
 
 (** X^A *)
-Program Canonical Structure SF_power (A: Setoid): SFUNCTOR :=
+Program Canonical Structure F_power (A: Setoid): FUNCTOR :=
   {| app' X := setoid_morphisms_setoid A X; app X Y f := _ |}.
 Next Obligation.
   exists (fun g => Setoid.comp f g). by apply comp_eqv_. 
@@ -641,14 +695,14 @@ Defined.
 Next Obligation. intros ?? H??. apply (H _). Qed.
 
 (** option *)
-Program Canonical Structure SF_option: SFUNCTOR :=
+Program Canonical Structure F_option: FUNCTOR :=
   {| app' := option_setoid; app := @option_map' |}. 
 Next Obligation. by intros ?? H []; cbn. Qed.
 Next Obligation. by case a; cbn. Qed.
 Next Obligation. by case a; cbn. Qed.
 
 (** list *)
-Program Canonical Structure SF_list: SFUNCTOR :=
+Program Canonical Structure F_list: FUNCTOR :=
   {| app' := list_setoid; app X Y f := _ |}.
 Next Obligation.
   exists (List.map f).
@@ -660,7 +714,7 @@ Next Obligation. induction a; split; trivial. Qed.
 Next Obligation. induction a; split; trivial. Qed.
 
 (** powerset *)
-Program Definition SF_pow: SFUNCTOR :=
+Program Definition F_pow: FUNCTOR :=
   {| app' X := ((X -eqv-> Prop): Setoid); app X Y f := _ |}.
 Next Obligation.
   unshelve eexists. intro S.
@@ -682,13 +736,17 @@ Next Obligation.
   by rewrite -F.
 Qed.
 
-Definition nat_alg'': ALGEBRA SF_option.
+(** ** natural unary numbers form the initial algebra of the [option] functor *)
+
+Inductive nat := O | S(n: nat). 
+
+Definition nat_alg: ALGEBRA F_option.
   exists (eq_setoid nat). unshelve eexists.
   case. exact S. exact O.
   move=>[a|] [b|]//=; congruence. 
 Defined.
 
-Lemma init_nat_alg'': initial nat_alg''.
+Lemma init_nat_alg: initial nat_alg.
 Proof.
   unshelve eapply Build_initial'.
   - intro f. unshelve eexists. unshelve eexists. 
@@ -702,5 +760,74 @@ Proof.
     apply: Setoid.body_eqv=>/=. exact: IH.
 Qed. 
 
+(** ** `conatural unary numbers' almost form the final coalgebra of the [option] functor *)
 
-(* TODO: succeeds for coinductives (by defining bisimilarity) *)
+CoInductive conat := coO | coS(n: conat). 
+
+Definition bisimulation (R: relation conat) :=
+  forall n m, R n m -> match n, m with
+                 | coO,coO => True
+                 | coS n,coS m => R n m
+                 | _,_ => False
+                 end.
+Definition bisim n m := exists R, bisimulation R /\ R n m.
+Lemma bisimulation_bisim: bisimulation bisim.
+Proof.
+  move=>[|n] [|m] [R [BR /BR Rnm]]//=.
+  by exists R. 
+Qed.
+
+Lemma Equivalence_bisim: Equivalence bisim.
+Proof.
+  split.
+  - exists eq; split=>//. move=>[|n] [|m]=>//=; congruence.
+  - exists (fun x y => bisim y x); split=>//. move=>[|n] [|m] /bisimulation_bisim=>//.
+  - exists (fun x z => exists y, bisim x y /\ bisim y z); split; eauto.
+    move=>[|u] [|v] [[|w] [/bisimulation_bisim+ /bisimulation_bisim]]=>//. eauto.
+Qed.
+
+Canonical conat_setoid := Setoid.build conat bisim Equivalence_bisim.
+
+Definition conat_coalg: COALGEBRA F_option.
+  exists conat_setoid. unshelve eexists.
+  case. exact None. exact Some.
+  by move=>[|n] [|m] /bisimulation_bisim nm.
+Defined.
+
+Theorem final_conat_coalg: final conat_coalg.
+Proof.
+  split. 
+  - intro f.
+    set g := cofix CH x :=
+        match coalg_bod f x with
+        | Some x => coS (CH x)
+        | None => coO
+        end. 
+    unshelve eexists. exists g.
+    -- intros x y xy.
+       set R := fun gx gy => exists x y, gx = g x /\ gy = g y /\ x ≡ y.
+       exists R. split. 2: by unfold R; eauto.
+       clear=>?? [x [y [-> [-> xy]]]]/=.
+       have: coalg_bod f x ≡ coalg_bod f y. by apply: Setoid.body_eqv.
+       case: (coalg_bod f x); case: (coalg_bod f y)=>//= i j ij; unfold R; eauto.
+    -- intro x; simpl. case (coalg_bod f x)=>//=. reflexivity.  
+  - intros X f g x.
+    set R := fun fx gx => exists x, fx ≡ coalg_hom_ f x /\ gx ≡ coalg_hom_ g x.
+    exists R. split. 2: by unfold R; eauto.    
+    clear; move=>n m [x [nfx mgx]]//=.
+    have /= := coalgE f x. 
+    have /= := coalgE g x.
+    apply bisimulation_bisim in nfx.
+    apply bisimulation_bisim in mgx.  
+    destruct (coalg_hom_ f x) eqn:fx;
+    destruct (coalg_hom_ g x) eqn:gx;
+    destruct (coalg_bod X x) eqn:Xx=>//=.
+    -- intros _ _. destruct n; destruct m=>//=.
+    -- intros ? ?. destruct n; destruct m=>//=.
+       eexists; split.
+       rewrite nfx. eassumption.
+       rewrite mgx. eassumption.
+Qed.
+
+End SETOIDS.
+
