@@ -4,14 +4,16 @@ From Stdlib Require Import ssreflect ssrfun ssrbool.
 
 Set Implicit Arguments.
 Unset Transparent Obligations.
+Obligation Tactic := ((by cbn) || idtac).
 Set Primitive Projections.
 Set Universe Polymorphism.
 
-Axiom fun_ext: forall A B (f g: A -> B), (forall a, f a = g a) -> f = g.
-Axiom prop_ext: forall A B: Prop, (A <-> B) -> A = B. 
+Axiom funext: forall A B (f g: A -> B), (forall a, f a = g a) -> f = g.
+Axiom propext: forall A B: Prop, (A <-> B) -> A = B. 
 
 Definition const {X Y} y: X -> Y := fun _ => y.
 Arguments const {_ _} _ _/.
+Infix "×" := prod (at level 40). 
 
 (** * setoids *)
 Module Setoid.
@@ -33,13 +35,14 @@ Canonical Structure id {X: type}: morphism X X :=
   build_morphism Datatypes.id _.
 Program Canonical Structure comp {X Y Z: type} (f: morphism Y Z) (g: morphism X Y): morphism X Z :=
   build_morphism (comp f g) _.
-Next Obligation. move=>x y xy. apply f, g, xy. Qed.
+Next Obligation. move=>X Y Z f g x y xy. apply f, g, xy. Qed.
 Program Canonical Structure const {X Y: type} (y: Y): morphism X Y :=
   build_morphism (const y) _.
-Next Obligation. move=>/=_ _ _. apply Equivalence_eqv. Qed.
+Next Obligation. move=>X Y y _ _ _/=. apply Equivalence_eqv. Qed.
 
 End Setoid.
 Notation Setoid := Setoid.type.
+Notation body := Setoid.body.
 #[reversible] Coercion Setoid.sort: Setoid >-> Sortclass.
 #[reversible] Coercion Setoid.body: Setoid.morphism >-> Funclass.
 Existing Instance Setoid.Equivalence_eqv.
@@ -62,18 +65,8 @@ Proof. apply transitivity. Defined.
 Definition eq_setoid X := Setoid.build X eq eq_equivalence.
 Canonical unit_setoid := eq_setoid unit.
 Canonical bool_setoid := eq_setoid bool.
-Canonical False_setoid := eq_setoid False.
 
-Canonical Structure Prop_setoid := Setoid.build Prop iff _.
-
-Program Canonical dprod_setoid A (X: A -> Setoid) :=
-  Setoid.build (forall a, X a) (fun f g => forall a, f a ≡ g a) _.
-Next Obligation.
-  constructor.
-  - by move=>??.
-  - by move=>????; symmetry.
-  - by move=>??????; etransitivity; eauto.
-Qed.
+Canonical Prop_setoid := Setoid.build Prop iff _.
 
 Program Canonical prod_setoid (X Y: Setoid) :=
   Setoid.build (X*Y) (fun p q => fst p ≡ fst q /\ snd p ≡ snd q) _.
@@ -106,16 +99,16 @@ Qed.
 
 (** helpers for option setoids *)
 Program Definition None' {X: Setoid}: unit -eqv-> option X :=
-  {| Setoid.body _ := None |}.
+  {| body _ := None |}.
 Program Definition Some' {X: Setoid}: X -eqv-> option X :=
-  {| Setoid.body := Some |}.
-Next Obligation. intros ? ? E. apply E. Qed.
+  {| body := Some |}.
+Next Obligation. intros X ?? E. apply E. Qed.
 Program Definition option_pack {X Y: Setoid} (y: Y) (f: X -eqv-> Y): option X -eqv-> Y :=
-  {| Setoid.body x := match x with None => y | Some x => f x end |}.
-Next Obligation. intros [|] [|] E; cbn in E; try tauto. now apply f. reflexivity. Qed.
+  {| body x := match x with None => y | Some x => f x end |}.
+Next Obligation. intros X Y y f [|] [|] E; cbn in E; try tauto. by apply f. reflexivity. Qed.
 Program Definition option_map' {X Y} (f: X -eqv-> Y): option X -eqv-> option Y :=
   Setoid.build_morphism (option_map f) _.
-Next Obligation. intros [] [] E; cbn; try tauto. now apply f. Qed.
+Next Obligation. intros X Y f [] [] E; cbn; try tauto. by apply f. Qed.
 
 Fixpoint list_eqv {X: Setoid} (h k: list X) :=
   match h,k with cons x h,cons y k => x≡y /\ list_eqv h k | nil,nil => True | _,_ => False end.
@@ -126,6 +119,15 @@ Next Obligation.
   - by elim=>//.
   - by elim=>[|x h IH][|y k]//=[? ?]; split; auto.
   - elim=>[|x h IH][|y k][|z l]//=[? ?][? ?]; split; try etransitivity; eauto.
+Qed.
+
+Program Canonical dprod_setoid A (X: A -> Setoid) :=
+  Setoid.build (forall a, X a) (fun f g => forall a, f a ≡ g a) _.
+Next Obligation.
+  constructor.
+  - by move=>??.
+  - by move=>????; symmetry.
+  - by move=>??????; etransitivity; eauto.
 Qed.
 
 Program Definition kern_setoid A (X: Setoid) (f: A -> X) :=
@@ -173,6 +175,7 @@ Structure CATEGORY :=
 Arguments id {_ _}.
 Arguments comp {_ _ _ _}.
 Notation "g ∘ f" := (comp g f).
+Infix "∘[ 𝐂 ] " := (@comp 𝐂 _ _ _) (at level 40, left associativity, only parsing).
 Notation "A ~> B" := (hom _ A B) (at level 99, B at level 200, format "A  ~>  B").
 
 (** dual category *)
@@ -209,8 +212,8 @@ Program Definition UNIT: CATEGORY :=
     id _ := tt;
     comp _ _ _ _ _ := tt;
   |}.
-Next Obligation. by case f. Qed.
-Next Obligation. by case f. Qed.
+Next Obligation. by destruct f. Qed.
+Next Obligation. by destruct f. Qed.
 
 
 (** * epi/monos *)
@@ -272,7 +275,7 @@ Section universal.
   Proof. by apply init_unq. Qed.
   Program Definition Build_initial' I (f: forall X, I ~> X) (Hf: forall X (g: I ~> X), g ≡ f X): initial I :=
     {| init_mor := f |}.
-  Next Obligation. transitivity (f X); [|symmetry]; apply Hf. Qed.
+  Next Obligation. intros; transitivity (f X); [|symmetry]; apply Hf. Qed.
   
   Lemma initial_unique I I': initial I -> initial I' -> I ≃ I'.
   Proof.
@@ -290,7 +293,7 @@ Section universal.
   Proof. by apply fin_unq. Qed.
   Program Definition Build_final' Z (f: forall X, X ~> Z) (Hf: forall X (g: X ~> Z), g ≡ f X): final Z :=
     {| fin_mor := f |}.
-  Next Obligation. transitivity (f X); [|symmetry]; apply Hf. Qed.
+  Next Obligation. intros; transitivity (f X); [|symmetry]; apply Hf. Qed.
   
   Lemma final_unique Z Z': final Z -> final Z' -> Z ≃ Z'.
   Proof.
@@ -327,15 +330,15 @@ Program Definition functor_comp {𝐂 𝐃 𝐄} (G: FUNCTOR 𝐃 𝐄) (F: FUNC
     app _ _ f := app G (app F f);
   |}.
 Next Obligation.
-  intros f g H. by do 2 apply app_eqv.
+  intros* f g fg. by do 2 apply app_eqv.
 Qed.
-Next Obligation. by rewrite 2!app_id. Qed.
-Next Obligation. by rewrite 2!app_comp. Qed.
+Next Obligation. cbn; intros. by rewrite 2!app_id. Qed.
+Next Obligation. cbn; intros. by rewrite 2!app_comp. Qed.
 
 Program Definition functor_constant {𝐂 𝐃: CATEGORY} (A: 𝐃): FUNCTOR 𝐂 𝐃:=
   {| app' _ := A; app _ _ _ := id |}.
-Next Obligation. by intros ???. Qed.
-Next Obligation. by rewrite idl. Qed.
+Next Obligation. by cbn; intros. Qed.
+Next Obligation. cbn; intros. by rewrite idl. Qed.
 
 Definition app_iso {𝐂 𝐃} (F: FUNCTOR 𝐂 𝐃) A B: A ≃ B -> F A ≃ F B.
 Proof.
@@ -364,14 +367,14 @@ Section algebra.
   
   Program Definition alg_id (A: ALGEBRA): alg_hom A A := {| alg_hom_ := id |}.
   Next Obligation.
-    by rewrite app_id idl idr.
+    intro. by rewrite app_id idl idr.
   Qed.
   
   Program Definition alg_comp (A B C: ALGEBRA)
     (g: alg_hom B C) (f: alg_hom A B): alg_hom A C :=
     {| alg_hom_ := g ∘ f |}.
   Next Obligation.
-    by rewrite compA algE -compA algE app_comp compA.
+    intros. by rewrite compA algE -compA algE app_comp compA.
   Qed.
 
   Canonical alg_hom_setoid (A B: ALGEBRA) :=
@@ -379,10 +382,10 @@ Section algebra.
 
   Program Canonical Structure ALGEBRAS: CATEGORY :=
     {| ob := ALGEBRA ; id := @alg_id ; comp := @alg_comp |}.
-  Next Obligation. intros f f' H g g' G. by apply comp_eqv. Qed.
-  Next Obligation. apply idl. Qed.
-  Next Obligation. apply idr. Qed.
-  Next Obligation. apply compA. Qed.
+  Next Obligation. intros * f f' H g g' G. by apply comp_eqv. Qed.
+  Next Obligation. intros. apply idl. Qed.
+  Next Obligation. intros. apply idr. Qed.
+  Next Obligation. intros. apply compA. Qed.
 
   Section initial_algebra.
     Context {I: ALGEBRA} (H: initial I).
@@ -402,7 +405,7 @@ Section algebra.
     Definition rec (X: ALGEBRA): 𝐂 I X := H X.
     Lemma recE X: rec X ∘ I ≡ X ∘ app F (rec X).
     Proof. apply algE. Qed.
-    Lemma rec_comp (X Y: ALGEBRA) (f: X ~> Y): alg_hom_ f ∘ rec X ≡ rec Y.
+    Lemma rec_comp (X Y: ALGEBRA) (f: X ~> Y): f ∘[𝐂] rec X ≡ rec Y.
     Proof. apply (init_unq H _ (f ∘ H X) (H Y)). Qed.
     Corollary rec_eqv (X: 𝐂) (f g: F X ~> X): f ≡ g -> rec (alg X f) ≡ rec (alg X g).
     Proof.
@@ -438,14 +441,14 @@ Section coalgebra.
   
   Program Definition coalg_id (A: COALGEBRA): coalg_hom A A := {| coalg_hom_ := id |}.
   Next Obligation.
-    by rewrite app_id idl idr.
+    intros. by rewrite app_id idl idr.
   Qed.
   
   Program Definition coalg_comp (A B C: COALGEBRA)
     (g: coalg_hom B C) (f: coalg_hom A B): coalg_hom A C :=
     {| coalg_hom_ := g ∘ f |}.
   Next Obligation.
-    by rewrite -compA coalgE compA coalgE app_comp compA.
+    intros. by rewrite -compA coalgE compA coalgE app_comp compA.
   Qed.
 
   Canonical coalg_hom_setoid (A B: COALGEBRA) :=
@@ -453,10 +456,10 @@ Section coalgebra.
 
   Program Canonical Structure COALGEBRAS: CATEGORY :=
     {| ob := COALGEBRA ; id := @coalg_id ; comp := @coalg_comp |}.
-  Next Obligation. intros f f' H g g' G. by apply comp_eqv. Qed.
-  Next Obligation. apply idl. Qed.
-  Next Obligation. apply idr. Qed.
-  Next Obligation. apply compA. Qed.
+  Next Obligation. intros* f f' H g g' G. by apply comp_eqv. Qed.
+  Next Obligation. intros. apply idl. Qed.
+  Next Obligation. intros. apply idr. Qed.
+  Next Obligation. intros. apply compA. Qed.
 
   Section final_coalgebra.
     Context {Z: COALGEBRA} (H: final Z).
@@ -476,7 +479,7 @@ Section coalgebra.
     Definition corec (X: COALGEBRA): 𝐂 X Z := H X.
     Lemma corecE X: Z ∘ corec X  ≡ app F (corec X) ∘ X.
     Proof. apply coalgE. Qed.
-    Lemma corec_comp (X Y: COALGEBRA) (f: X ~> Y): corec Y ∘ coalg_hom_ f ≡ corec X.
+    Lemma corec_comp (X Y: COALGEBRA) (f: X ~> Y): corec Y ∘ f ≡ corec X.
     Proof. apply (fin_unq H _ (H Y ∘ f) (H X)). Qed.
     Corollary corec_eqv (X: 𝐂) (f g: X ~> F X): f ≡ g -> corec (coalg X f) ≡ corec (coalg X g).
     Proof.
@@ -497,33 +500,41 @@ Module TYPES.
 (** ** endofunctors on TYPES *)
 Notation FUNCTOR := (FUNCTOR TYPES TYPES).
 
-(** X^A *)
-Program Definition F_exp A: FUNCTOR :=
-  {| app' X := (A -> X); app X Y f g := comp f g |}.
+
+(** A×X *)
+Program Definition F_times A: FUNCTOR :=
+  {| app' X := A × X; app X Y f ax := (ax.1,f ax.2) |}.
+Next Obligation.
+  intros. by apply funext=>[[]].
+Qed.
 
 (** option *)
 Program Definition F_option: FUNCTOR :=
   {| app' := option; app := Option.map |}.
-Next Obligation. by apply fun_ext=>[[|]]. Qed.
-Next Obligation. by apply fun_ext=>[[|]]. Qed.
+Next Obligation. intros. by apply funext=>[[|]]. Qed.
+Next Obligation. intros. by apply funext=>[[|]]. Qed.
 
 (** list *)
 Program Definition F_list: FUNCTOR :=
   {| app' := list; app := List.map |}.
-Next Obligation. apply fun_ext; elim=>/=; congruence. Qed.
-Next Obligation. apply fun_ext; elim=>/=; congruence. Qed.
+Next Obligation. intros. apply funext; elim=>/=; congruence. Qed.
+Next Obligation. intros. apply funext; elim=>/=; congruence. Qed.
+
+(** X^A *)
+Program Definition F_exp A: FUNCTOR :=
+  {| app' X := A -> X; app X Y f g := comp f g |}.
 
 (** powerset *)
 Program Definition F_pow: FUNCTOR :=
   {| app' X := (X -> Prop); app X Y f S := fun y => exists x, S x /\ y = f x |}.
 Next Obligation.
-  apply fun_ext=>S;  apply fun_ext=>y.
-  apply prop_ext; split=>H; eauto.
+  cbn; intros. apply funext=>S;  apply funext=>y.
+  apply propext; split=>H; eauto.
   by destruct H as [? [Sy <-]]. 
 Qed.
 Next Obligation.
-  apply fun_ext=>S;  apply fun_ext=>y.
-  apply prop_ext; split; move=>[x [Hx ->]]; eauto.
+  cbn; intros. apply funext=>S;  apply funext=>y.
+  apply propext; split; move=>[x [Hx ->]]; eauto.
   destruct Hx as [? [? ->]]; eauto.
 Qed.
 
@@ -541,8 +552,8 @@ Proof.
   - intro f. unshelve eexists. 
     elim. exact (alg_bod f None).
     intros _ x. exact (alg_bod f (Some x)).
-    by apply fun_ext=>[[|]].
-  - simpl. intros X g. apply fun_ext.
+    by apply funext=>[[|]].
+  - simpl. intros X g. apply funext.
     elim=>/=[|n IH]. apply (f_equal (fun f => f None) (algE g)).
     rewrite -IH. apply (f_equal (fun f => f (Some _)) (algE g)). 
 Qed.
@@ -562,7 +573,7 @@ Proof.
     cofix CH. intro x. destruct (coalg_bod f x) as [c|].
     apply coS, CH, c.
     apply coO.
-    apply fun_ext=>x. by destruct (coalg_bod f x). 
+    apply funext=>x. by destruct (coalg_bod f x). 
   - intros X f g.
     admit.
 Abort.
@@ -582,47 +593,58 @@ Program Definition ETYPES: CATEGORY :=
     comp _ _ _ f g := fun x => f (g x);
   |}.
 Next Obligation.
-  intros f f' ff g g' gg a. by rewrite ff gg.
+  intros * f f' ff g g' gg a. by rewrite ff gg.
 Qed.
 
 (** ** endofunctors on ETYPES *)
 Notation FUNCTOR := (FUNCTOR ETYPES ETYPES).
 
-(** X^A *)
-Program Definition F_exp A: FUNCTOR :=
-  {| app' X := (A -> X); app X Y f g := comp f g |}.
+(** A×X *)
+Program Definition F_times A: FUNCTOR :=
+  {| app' X := A × X; app X Y f ax := (ax.1,f ax.2) |}.
 Next Obligation.
-  intros f g fg h. apply fun_ext=>a. apply fg. (* still need [fun_ext] *)
+  move=>/=A B C f g E [a b]/=. by rewrite E.
+Qed.
+Next Obligation.
+  by move=>??[]. 
 Qed.
 
 (** option *)
 Program Definition F_option: FUNCTOR :=
   {| app' := option; app := Option.map |}.
-Next Obligation. intros f g fg [a|]=>//=. f_equal; apply fg. Qed.
-Next Obligation. by case a. Qed.
-Next Obligation. by case a. Qed.
+Next Obligation. intros * f g fg [a|]=>//=. f_equal; apply (fg a). Qed.
+Next Obligation. by move=>?[]. Qed.
+Next Obligation. by move=>*[]. Qed.
 
 (** list *)
 Program Definition F_list: FUNCTOR :=
   {| app' := list; app := List.map |}.
-Next Obligation. intros f g fg. elim=> [|a q IH]=>//=. by f_equal. Qed.
-Next Obligation. elim a=>/=; congruence. Qed.
-Next Obligation. elim a=>/=; congruence. Qed.
+Next Obligation. move=>* f g /=fg. elim=> [|a q IH]=>//=. by f_equal. Qed.
+Next Obligation. intros. elim=>/=; congruence. Qed.
+Next Obligation. intros. elim=>/=; congruence. Qed.
+
+(** X^A *)
+Program Definition F_exp A: FUNCTOR :=
+  {| app' X := (A -> X); app X Y f g := comp f g |}.
+Next Obligation.
+  move=>/=* f g fg h. apply funext=>a. apply fg. (* still need [funext] *)
+Qed.
 
 (** powerset *)
 Program Definition F_pow: FUNCTOR :=
   {| app' X := (X -> Prop); app X Y f S := fun y => exists x, S x /\ y = f x |}.
 Next Obligation.
-  intros f g fg S. apply: fun_ext=>b. apply: prop_ext. (* still need [fun_ext] and [prop_ext] *)
+  move=>/=* f g fg S. apply: funext=>b. apply: propext. (* still need [funext] and [propext] *)
   by setoid_rewrite fg.
 Qed.
 Next Obligation.
-  apply fun_ext=>x. apply prop_ext; split=>H; eauto.
+  move=>/=*. apply funext=>x.
+  apply propext; split=>H; eauto.
   by destruct H as [? [Sy <-]]. 
 Qed.
 Next Obligation.
-  apply fun_ext=>w.
-  apply prop_ext; split; move=>[x [Hx ->]]; eauto.
+  move=>/=*. apply funext=>w.
+  apply propext; split; move=>[x [Hx ->]]; eauto.
   destruct Hx as [? [? ->]]; eauto.
 Qed.
 
@@ -686,57 +708,75 @@ Program Definition SETOIDS: CATEGORY :=
 (** ** endofunctors on SETOIDS *)
 Notation FUNCTOR := (FUNCTOR SETOIDS SETOIDS).
 
-(** X^A *)
-Program Canonical Structure F_power (A: Setoid): FUNCTOR :=
-  {| app' X := setoid_morphisms_setoid A X; app X Y f := _ |}.
+(** A×X *)
+Program Definition F_times (A: Setoid): FUNCTOR :=
+  {| app' X := (A × X: Setoid);
+     app X Y f := {| body ax := (ax.1,f ax.2) |} |}.
 Next Obligation.
-  exists (fun g => Setoid.comp f g). by apply comp_eqv_. 
-Defined.
-Next Obligation. intros ?? H??. apply (H _). Qed.
+  move=>/=A X Y f ax ay [aa xy]/=. by rewrite xy. 
+Qed.
+Next Obligation.
+  move=>/=A B C f g E [a b]//=. 
+Qed.
 
 (** option *)
-Program Canonical Structure F_option: FUNCTOR :=
-  {| app' := option_setoid; app := @option_map' |}. 
-Next Obligation. by intros ?? H []; cbn. Qed.
-Next Obligation. by case a; cbn. Qed.
-Next Obligation. by case a; cbn. Qed.
+Program Definition F_option: FUNCTOR :=
+  {| app' := option_setoid;
+     app := @option_map' |}.    (* TODO: inline *)
+Next Obligation. by intros * ?? H []; cbn. Qed.
+Next Obligation. by move=>?[]. Qed.
+Next Obligation. by move=>*[]. Qed.
 
 (** list *)
-Program Canonical Structure F_list: FUNCTOR :=
-  {| app' := list_setoid; app X Y f := _ |}.
+Program Definition F_list: FUNCTOR :=
+  {| app' := list_setoid;
+     app X Y f := {| body := List.map f |} |}.
 Next Obligation.
-  exists (List.map f).
-  intro h; induction h as [|a h IH]; intros [|b k]; cbn; try tauto; intros [].
-  split. now apply f. now apply IH. 
-Defined.
-Next Obligation. intros f g fg l. cbn. induction l; try split; trivial. Qed.
-Next Obligation. induction a; split; trivial. Qed.
-Next Obligation. induction a; split; trivial. Qed.
+  intros X Y f.
+  elim=>[|a h IH] [|b k]/=; try tauto; intros [].
+  split. by apply f. by apply IH. 
+Qed.
+Next Obligation. intros * f g fg. by elim. Qed.
+Next Obligation. intros *. by elim. Qed.
+Next Obligation. intros *. by elim. Qed.
+
+(** X^A *)
+Program Definition F_exp (A: Setoid): FUNCTOR :=
+  {| app' := setoid_morphisms_setoid A;
+     app X Y f := {| body := Setoid.comp f |} |}.
+Next Obligation.
+  intros*???. by apply comp_eqv_. 
+Qed.
+Next Obligation.
+  intros * ?? H??. apply (H _).
+Qed.
 
 (** powerset *)
 Program Definition F_pow: FUNCTOR :=
-  {| app' X := ((X -eqv-> Prop): Setoid); app X Y f := _ |}.
+  {| app' X := ((X -eqv-> Prop): Setoid);
+     app X Y f := {| body S := {| body y := exists x, S x /\ y ≡ f x |} |} |}.
 Next Obligation.
-  unshelve eexists. intro S.
-  exists (fun y => exists x, S x /\ y ≡ f x).
-  move=>y y' yy/=. abstract by setoid_rewrite yy. 
-  move=>S T ST y/=. abstract (split; move=>[x [Sx E]]; exists x; split=>//; by apply ST).
-Defined.
+  move=>* y y' yy/=. by setoid_rewrite yy.
+Qed.
 Next Obligation.
-  intros f g fg S b; simpl.
+  move=>* S T ST y/=.
+  split; move=>[x [Sx E]]; exists x; split=>//; by apply ST.
+Qed.
+Next Obligation.
+  move=>* f g /=fg S b.
   by setoid_rewrite fg.
 Qed.
 Next Obligation.
-  split=>H; eauto.
+  move=>/=*. split=>H; eauto.
   by destruct H as [? [Sy ->]].
 Qed.
 Next Obligation.
-  split; move=>[x [Hx E]]; eauto.
+  move=>/=*. split; move=>[x [Hx E]]; eauto.
   destruct Hx as [u [Hu F]]. exists u. split=>//.
   by rewrite -F.
 Qed.
 
-(** ** natural unary numbers form the initial algebra of the [option] functor *)
+(** ** natural unary numbers are the initial algebra of the [option] functor *)
 
 Inductive nat := O | S(n: nat). 
 
@@ -760,7 +800,7 @@ Proof.
     apply: Setoid.body_eqv=>/=. exact: IH.
 Qed. 
 
-(** ** `conatural unary numbers' almost form the final coalgebra of the [option] functor *)
+(** ** `conatural unary numbers modulo bisimilarity' are the final coalgebra of the [option] functor *)
 
 CoInductive conat := coO | coS(n: conat). 
 
