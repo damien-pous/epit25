@@ -43,17 +43,19 @@ Next Obligation. move=>X Y y _ _ _/=. apply Equivalence_eqv. Qed.
 End Setoid.
 Notation Setoid := Setoid.type.
 Notation body := Setoid.body.
+Notation eqv := (Setoid.eqv _).
 #[reversible] Coercion Setoid.sort: Setoid >-> Sortclass.
 #[reversible] Coercion Setoid.body: Setoid.morphism >-> Funclass.
 Existing Instance Setoid.Equivalence_eqv.
 Existing Instance Setoid.body_eqv.
 Notation "X '-eqv->' Y" := (Setoid.morphism X%type Y%type) (at level 99, Y at level 200).
+Notation "'efun' x .. y => p" := ({| body x := .. {| body y := p |} ..|})
+  (at level 200, x binder, right associativity).
 Canonical Setoid.id.
 Canonical Setoid.comp.
 Canonical Setoid.const.
-Definition eqv {X: Setoid} := Setoid.eqv X.
 Infix "≡" := eqv (at level 70).
-Infix "≡[ X ]" := (@eqv X) (at level 70, only parsing).
+Infix "≡[ X ]" := (@Setoid.eqv X) (at level 70, only parsing).
 Lemma eqv_refl {X: Setoid} (x: X): x ≡ x.
 Proof. reflexivity. Qed.
 Lemma eqv_sym {X: Setoid} (x y: X): x ≡ y -> y ≡ x.
@@ -99,15 +101,15 @@ Qed.
 
 (** helpers for option setoids *)
 Program Definition None' {X: Setoid}: unit -eqv-> option X :=
-  {| body _ := None |}.
+  efun _ => None. 
 Program Definition Some' {X: Setoid}: X -eqv-> option X :=
-  {| body := Some |}.
+  efun x => Some x.
 Next Obligation. intros X ?? E. apply E. Qed.
 Program Definition option_pack {X Y: Setoid} (y: Y) (f: X -eqv-> Y): option X -eqv-> Y :=
-  {| body x := match x with None => y | Some x => f x end |}.
+  efun x => match x with None => y | Some x => f x end.
 Next Obligation. intros X Y y f [|] [|] E; cbn in E; try tauto. by apply f. reflexivity. Qed.
 Program Definition option_map' {X Y} (f: X -eqv-> Y): option X -eqv-> option Y :=
-  Setoid.build_morphism (option_map f) _.
+  efun x => option_map f x.
 Next Obligation. intros X Y f [] [] E; cbn; try tauto. by apply f. Qed.
 
 Fixpoint list_eqv {X: Setoid} (h k: list X) :=
@@ -138,7 +140,7 @@ Next Obligation.
   - by move=>???.
   - by move=>?????; etransitivity; eauto.
 Defined.
-Lemma kern_eqv A (X: Setoid) (f: A -> X): Proper (@eqv (kern_setoid X f) ==> eqv) f.
+Lemma kern_eqv A (X: Setoid) (f: A -> X): Proper (Setoid.eqv (kern_setoid X f) ==> eqv) f.
 Proof. now intros. Qed.
 Definition kern' A (X: Setoid) (f: A -> X): kern_setoid X f -eqv-> X :=
   @Setoid.build_morphism (kern_setoid X f) X f (kern_eqv X f).
@@ -178,7 +180,7 @@ Notation "g ∘ f" := (comp g f).
 Infix "∘[ 𝐂 ] " := (@comp 𝐂 _ _ _) (at level 40, left associativity, only parsing).
 Notation "A ~> B" := (hom _ A B) (at level 99, B at level 200, format "A  ~>  B").
 
-(** dual category *)
+(** dual category (SKIP??) *)
 Program Definition dual (𝐂: CATEGORY): CATEGORY :=
   {|
     ob := ob 𝐂;
@@ -216,7 +218,7 @@ Next Obligation. by destruct f. Qed.
 Next Obligation. by destruct f. Qed.
 
 
-(** * epi/monos *)
+(** * epi/monos (SKIP??) *)
 Section epimono.
   Context {𝐂: CATEGORY}.
   Definition epi {A B: 𝐂} (f: A ~> B) := forall C (g h: B ~> C), g ∘ f ≡ h ∘ f -> g ≡ h.
@@ -271,8 +273,7 @@ Section universal.
       init_mor:> forall X, I ~> X;
       init_unq: forall X (f g: I ~> X), f ≡ g;
     }.
-  Lemma init_unq' I (i: initial I) X (g: I ~> X): g ≡ i X.
-  Proof. by apply init_unq. Qed.
+  (* SKIP? *)
   Program Definition Build_initial' I (f: forall X, I ~> X) (Hf: forall X (g: I ~> X), g ≡ f X): initial I :=
     {| init_mor := f |}.
   Next Obligation. intros; transitivity (f X); [|symmetry]; apply Hf. Qed.
@@ -289,8 +290,6 @@ Section universal.
       fin_mor:> forall X, X ~> Z;
       fin_unq: forall X (f g: X ~> Z), f ≡ g;
     }.
-  Lemma fin_unq' Z (f: final Z) X (g: X ~> Z): g ≡ f X.
-  Proof. by apply fin_unq. Qed.
   Program Definition Build_final' Z (f: forall X, X ~> Z) (Hf: forall X (g: X ~> Z), g ≡ f X): final Z :=
     {| fin_mor := f |}.
   Next Obligation. intros; transitivity (f X); [|symmetry]; apply Hf. Qed.
@@ -402,6 +401,7 @@ Section algebra.
       by rewrite (algE j) /= -app_comp ij app_id. 
     Qed.
 
+    (* SKIP?? *)
     Definition rec (X: ALGEBRA): 𝐂 I X := H X.
     Lemma recE X: rec X ∘ I ≡ X ∘ app F (rec X).
     Proof. apply algE. Qed.
@@ -476,6 +476,7 @@ Section coalgebra.
       by rewrite (coalgE y) /= -app_comp yz app_id. 
     Qed.
 
+    (* SKIP?? *)
     Definition corec (X: COALGEBRA): 𝐂 X Z := H X.
     Lemma corecE X: Z ∘ corec X  ≡ app F (corec X) ∘ X.
     Proof. apply coalgE. Qed.
@@ -496,7 +497,9 @@ Arguments coalg {_ _ _}.
 
 (** * case-study in the category of types and functions *)
 Module TYPES.
-       
+
+Canonical TYPES.
+  
 (** ** endofunctors on TYPES *)
 Notation FUNCTOR := (FUNCTOR TYPES TYPES).
 
@@ -509,7 +512,7 @@ Next Obligation.
 Qed.
 
 (** option *)
-Program Definition F_option: FUNCTOR :=
+Program Canonical F_option: FUNCTOR :=
   {| app' := option; app := Option.map |}.
 Next Obligation. intros. by apply funext=>[[|]]. Qed.
 Next Obligation. intros. by apply funext=>[[|]]. Qed.
@@ -542,9 +545,9 @@ Qed.
 
 Inductive nat := O | S(n: nat). 
 
-Definition nat_alg: ALGEBRA F_option.
-  exists nat. case. exact S. exact O.
-Defined.
+Definition nat_alg: ALGEBRA F_option :=
+  {| alg_car := nat: ob TYPES;
+     alg_bod x := match x with Some x => S x | None => O end |}.
 
 Lemma init_nat_alg: initial nat_alg.
 Proof.
@@ -562,9 +565,9 @@ Qed.
 
 CoInductive conat := coO | coS(n: conat). 
 
-Definition conat_coalg: COALGEBRA F_option.
-  exists conat. case. exact None. exact Some.
-Defined.
+Definition conat_coalg: COALGEBRA F_option :=
+  {| coalg_car := conat: ob TYPES;
+     coalg_bod x := match x with coS n => Some n | coO => None end |}.
 
 Lemma final_conat_coalg: final conat_coalg.
 Proof.
@@ -578,6 +581,42 @@ Proof.
     admit.
 Abort.
 
+
+(** ** the empty set is the initial algebra of the [AxX] functor *)
+
+Variant empty := .
+
+Program Definition empty_alg A: ALGEBRA (F_times A) :=
+  {| alg_car := empty;
+     alg_bod x := match x.2 with end |}.
+
+Lemma init_empty_alg A: initial (empty_alg A).
+Proof.
+  unshelve eapply Build_initial'.
+  - intro f. unshelve eexists. by case.
+    apply funext. by move=>[?[]]. 
+  - simpl. intros X g. apply funext. by case. 
+Qed.
+
+
+(** ** streams are almost a final coalgebra of the [AxX] functor *)
+
+CoInductive stream A := cons { head: A; tail: stream A }. 
+
+Program Definition stream_coalg A: COALGEBRA (F_times A) :=
+  {| coalg_car := stream A;
+     coalg_bod s := (head s, tail s) |}.
+
+Lemma final_stream_coalg A: final (stream_coalg A).
+Proof.
+  split. 
+  - intro f. unshelve eexists; cbn.
+    cofix CH. intro x. destruct (coalg_bod f x) as [a y]. exact (cons a (CH y)).
+    apply funext=>x; simpl. by destruct (coalg_bod f x). 
+  - intros X f g.
+    admit.
+Abort.
+
 End TYPES.
 
 
@@ -585,7 +624,7 @@ End TYPES.
 Module ETYPES.
 
 (** category of types and extensional functions *)
-Program Definition ETYPES: CATEGORY :=
+Program Canonical ETYPES: CATEGORY :=
   {|
     ob := Type;
     hom A B := dprod_setoid (fun _: A => eq_setoid B);
@@ -652,9 +691,9 @@ Qed.
 
 Inductive nat := O | S(n: nat). 
 
-Definition nat_alg: ALGEBRA F_option.
-  exists nat. case. exact S. exact O.
-Defined.
+Program Definition nat_alg: ALGEBRA F_option :=
+  {| alg_car := nat;
+     alg_bod x := match x with Some x => S x | None => O end |}.
 
 Lemma init_nat_alg: initial nat_alg.
 Proof.
@@ -672,9 +711,8 @@ Qed.
 
 CoInductive conat := coO | coS(n: conat). 
 
-Definition conat_coalg: COALGEBRA F_option.
-  exists conat. case. exact None. exact Some.
-Defined.
+Definition conat_coalg: COALGEBRA F_option :=
+  @coalg _ F_option conat (fun x => match x with coS n => Some n | coO => None end). 
 
 Lemma final_conat_coalg: final conat_coalg.
 Proof.
@@ -697,7 +735,7 @@ End ETYPES.
 Module SETOIDS.
 
 (** category of setoids and setoid morphisms *)
-Program Definition SETOIDS: CATEGORY :=
+Program Canonical SETOIDS: CATEGORY :=
   {|
     ob := Setoid;
     hom := setoid_morphisms_setoid;
@@ -711,7 +749,7 @@ Notation FUNCTOR := (FUNCTOR SETOIDS SETOIDS).
 (** A×X *)
 Program Definition F_times (A: Setoid): FUNCTOR :=
   {| app' X := (A × X: Setoid);
-     app X Y f := {| body ax := (ax.1,f ax.2) |} |}.
+     app X Y f := efun ax => (ax.1,f ax.2) |}.
 Next Obligation.
   move=>/=A X Y f ax ay [aa xy]/=. by rewrite xy. 
 Qed.
@@ -730,7 +768,7 @@ Next Obligation. by move=>*[]. Qed.
 (** list *)
 Program Definition F_list: FUNCTOR :=
   {| app' := list_setoid;
-     app X Y f := {| body := List.map f |} |}.
+     app X Y f := efun l => List.map f l |}.
 Next Obligation.
   intros X Y f.
   elim=>[|a h IH] [|b k]/=; try tauto; intros [].
@@ -743,7 +781,7 @@ Next Obligation. intros *. by elim. Qed.
 (** X^A *)
 Program Definition F_exp (A: Setoid): FUNCTOR :=
   {| app' := setoid_morphisms_setoid A;
-     app X Y f := {| body := Setoid.comp f |} |}.
+     app X Y f := efun g => Setoid.comp f g |}.
 Next Obligation.
   intros*???. by apply comp_eqv_. 
 Qed.
@@ -754,7 +792,7 @@ Qed.
 (** powerset *)
 Program Definition F_pow: FUNCTOR :=
   {| app' X := ((X -eqv-> Prop): Setoid);
-     app X Y f := {| body S := {| body y := exists x, S x /\ y ≡ f x |} |} |}.
+     app X Y f := efun S y => exists x, S x /\ y ≡ f x |}.
 Next Obligation.
   move=>* y y' yy/=. by setoid_rewrite yy.
 Qed.
@@ -780,11 +818,12 @@ Qed.
 
 Inductive nat := O | S(n: nat). 
 
-Definition nat_alg: ALGEBRA F_option.
-  exists (eq_setoid nat). unshelve eexists.
-  case. exact S. exact O.
+Program Definition nat_alg: ALGEBRA F_option :=
+  {| alg_car := eq_setoid nat;
+     alg_bod := efun x => match x with Some x => S x | None => O end |}.
+Next Obligation.
   move=>[a|] [b|]//=; congruence. 
-Defined.
+Qed.
 
 Lemma init_nat_alg: initial nat_alg.
 Proof.
@@ -803,6 +842,8 @@ Qed.
 (** ** `conatural unary numbers modulo bisimilarity' are the final coalgebra of the [option] functor *)
 
 CoInductive conat := coO | coS(n: conat). 
+
+Module conat1.
 
 Definition bisimulation (R: relation conat) :=
   forall n m, R n m -> match n, m with
@@ -829,9 +870,9 @@ Qed.
 Canonical conat_setoid := Setoid.build conat bisim Equivalence_bisim.
 
 Definition conat_coalg: COALGEBRA F_option.
-  exists conat_setoid. unshelve eexists.
-  case. exact None. exact Some.
-  by move=>[|n] [|m] /bisimulation_bisim nm.
+  refine (@coalg _ F_option conat_setoid (efun x => match x with coS n => Some n | coO => None end)). 
+Proof.
+  abstract by move=>[|n] [|m] /bisimulation_bisim nm.
 Defined.
 
 Theorem final_conat_coalg: final conat_coalg.
@@ -868,6 +909,155 @@ Proof.
        rewrite nfx. eassumption.
        rewrite mgx. eassumption.
 Qed.
+
+End conat1.
+
+Module conat2.
+
+CoInductive bisim: relation conat :=
+| bisO: bisim coO coO
+| bisS: Proper (bisim ==> bisim) coS.
+
+Lemma Equivalence_bisim: Equivalence bisim.
+Proof.
+  split.
+  - cofix CH; case; constructor; reflexivity. 
+  - cofix CH; move=>??[|n m nm]; constructor; by symmetry. 
+  - cofix CH; move=>???[|n m nm]; inversion_clear 1; constructor; etransitivity; eassumption.
+Qed.
+
+Canonical conat_setoid := Setoid.build conat bisim Equivalence_bisim.
+
+Lemma bisimulation (n m: conat):
+    n ≡ m <->
+      match n, m with
+      | coO,coO => True
+      | coS n,coS m => n ≡ m
+      | _,_ => False
+      end.
+Proof.
+  split.  
+  - case:n=>[|x];case m=>[|y]; by inversion_clear 1.
+  - case:n=>[|x];case m=>[|y]=>//; by constructor. 
+Defined.
+
+Definition conat_coalg: COALGEBRA F_option.
+  refine (@coalg _ F_option conat_setoid (efun x => match x with coS n => Some n | coO => None end)). 
+Proof.
+  by move=>[|n] [|m] // /bisimulation nm; auto; elim nm.
+Defined.
+
+Theorem final_conat_coalg: final conat_coalg.
+Proof.
+  split. 
+  - intro f.
+    set g := cofix CH x :=
+        match coalg_bod f x with
+        | Some x => coS (CH x)
+        | None => coO
+        end. 
+    unshelve eexists. exists g.
+    -- cofix CH.
+       move=>x y xy.
+       apply (Setoid.body_eqv (coalg_bod f)) in xy.
+       apply/bisimulation=>/=.
+       destruct (coalg_bod f x);
+       destruct (coalg_bod f y); move=>//=.
+       by apply CH.
+    -- intro x; simpl. case (coalg_bod f x)=>//=. reflexivity.
+  - intros X f g.
+    cofix CH. 
+    move=>x. 
+    have /= := coalgE f x. 
+    have /= := coalgE g x.
+    remember (coalg_hom_ f x) as n eqn:nfx. 
+    remember (coalg_hom_ g x) as m eqn:mgx.
+    setoid_rewrite <-nfx. 
+    setoid_rewrite <-mgx.
+    destruct n;
+    destruct m;
+    destruct (coalg_bod X x)=>//=.
+    -- constructor.
+    -- move=>mgs nfs; constructor. rewrite mgs nfs. apply (CH _).
+Admitted.                       (* not guarded... *)
+
+End conat2.
+
+
+(** ** the empty set is the initial algebra of the [AxX] functor *)
+
+Variant empty := .
+
+Program Definition empty_alg A: ALGEBRA (F_times A) :=
+  {| alg_car := eq_setoid empty;
+     alg_bod := efun x => match x.2 with end |}.
+Next Obligation.
+  by move=>/=A [?[]].
+Qed.
+
+Lemma init_empty_alg A: initial (empty_alg A).
+Proof.
+  unshelve eapply Build_initial'.
+  - intro f. unshelve eexists. unshelve eexists.
+    by case. by case. by case. 
+  - by cbn. 
+Qed.
+
+
+(** ** streams modulo bisimularity are the final coalgebra of the [AxX] functor *)
+
+CoInductive stream (A: Setoid) := cons { head: A; tail: stream A }. 
+
+Module stream2.
+
+CoInductive bisim {A}: relation (stream A) :=
+| bis_cons: forall s t, head s ≡ head t -> bisim (tail s) (tail t) -> bisim s t.
+
+Lemma Equivalence_bisim {A}: Equivalence (@bisim A).
+Proof.
+  split.
+  - cofix CH; move=>?; constructor; reflexivity.
+  - cofix CH; move=>??[]; constructor; by symmetry. 
+  - cofix CH; move=>???; do 2 inversion_clear 1; constructor; etransitivity; eassumption.
+Qed.
+
+Canonical stream_setoid A := Setoid.build (stream A) bisim Equivalence_bisim.
+
+Lemma bisimulation {A} (n m: stream A):
+  n ≡ m <-> head n ≡ head m /\ tail n ≡ tail m.
+Proof.
+  split.  
+  - by inversion_clear 1.
+  - by case; constructor.
+Defined.
+
+Definition stream_coalg A: COALGEBRA (F_times A).
+  refine (@coalg _ (F_times A) (stream_setoid A)
+            (efun s => (head s, tail s))). 
+Proof.
+  by move=>s t/bisimulation.
+Defined.
+
+Lemma final_stream_coalg A: final (stream_coalg A).
+Proof.
+  split. 
+  - intro f.
+    set g := cofix CH x := let y := coalg_bod f x in cons y.1 (CH y.2). 
+    unshelve eexists. eexists g.
+    -- cofix CH. move=>x y xy.
+       apply (Setoid.body_eqv (coalg_bod f)) in xy.
+       constructor. apply xy. cbn. apply CH, xy.
+    -- move=>x/=; split; reflexivity. 
+  - intros X f g.
+    cofix CH. move=>x.
+    have [/=fx1 fx2] := coalgE f x. 
+    have [/=gx1 gx2] := coalgE g x. 
+    constructor.
+    -- by rewrite fx1 gx1.
+    -- setoid_rewrite fx2. setoid_rewrite gx2. apply (CH _). 
+Admitted.    (* not guarded again, possibly because of the implicit upto in the second supbroof? *)
+
+End stream2.
 
 End SETOIDS.
 

@@ -1,8 +1,8 @@
 # Créneaux
 
-1h30 lundi pm
-1h15 mardi pm
-1h15 jeudi pm
+1h30 lundi pm  : cats, init alg, final coalg, TYPES, containers, coinductives need some quotient
+1h15 mardi pm  : bisim for streams / SETOIDS ; [complete lattices + fixpoints au tableau]
+1h15 jeudi pm  : companion/tower, bisim for streams
 
 # Plan
 
@@ -54,11 +54,12 @@ Bring you computer: the course will be based on Rocq exercises.
 - besoin de funext (+ propext) pour définir les foncteurs de base dans TYPES -> faire ETYPES ?
 
 - si on garde le flow 
-     1. cats-algèbres-coalgèbres
+     1. cats-algèbres-coalgèbres-containers
 	 2. bisim pour coinductifs
 	 3. companion/tower
 	 4. bisim pour CCS
   -- alors il faut faire 2. à la mano -> en CoInductive, ou en imprédicatif (= union des bisimulations) ?
   -- on l'avait déjà remarqué je crois, mais on ne reboucle pas sur 1. avec 4. car le foncteur naturel pour CCS n'a pas de coalgèbre finale :-/
+  
   
   
