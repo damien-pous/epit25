@@ -1,12 +1,39 @@
-From epit Require Export utils setoids.
+From epit Require Export setoids.
 
-(** * categories *)
+(** Bisimulation and coinductive types in the Rocq proof assistant
+    Course 1: Formalizing initial algebras and final coalgebras---towards the need for quotients
+*)
+
+(** * Preliminaries: Setoids
+
+  Setoids emulate quotients that mathematicians routinely use.
+  A setoid is the data of a Type paired with an equivalence relation.
+  Morphisms between setoids are maps preserving this equivalence.
+
+  We take the file [setoids.v] as a black box providing support to work with them (albeit feel free to open it!).
+  The module provides us with:
+  - A structure of [Setoid]
+  - Notations for its equivalence: [eqv], written [≡] ("\equiv")
+*)
+
+(** * Part 1: Categories
+
+    We start by formalizing the bits of category theory we need to build up to initial algebras and final coalgebras.
+    Importantly, notice that objects are a Type, while the homset between two objects are a Setoid.
+    Indeed, thinking of standard examples, arrows may be functions (we want to consider them extensionally),
+    lambda termes (we want to consider them up-to βε), etc...
+    We package in the same structure both the data and the axioms.
+*)
+
+(** * Categories *)
+
 Structure CATEGORY :=
   {
-    ob:> Type;
+    ob :> Type;
     hom:> ob -> ob -> Setoid;
 #[canonical=no] id: forall {A}, hom A A;
 #[canonical=no] comp: forall {A B C}, hom B C -> hom A B -> hom A C;
+
 #[canonical=no] comp_eqv:: forall {A B C}, Proper (eqv ==> eqv ==> eqv) (@comp A B C);
 #[canonical=no] idl: forall {A B} f, @comp A A B f id ≡ f;
 #[canonical=no] idr: forall {A B} f, @comp B A A id f ≡ f;
@@ -19,43 +46,52 @@ Notation "g ∘ f" := (comp g f).
 Infix "∘[ 𝐂 ] " := (@comp 𝐂 _ _ _) (at level 40, left associativity, only parsing).
 Notation "A ~> B" := (hom _ A B) (at level 99, B at level 200, format "A  ~>  B").
 
-(** dual category (SKIP??) *)
-Program Definition dual (𝐂: CATEGORY): CATEGORY :=
-  {|
-    ob := ob 𝐂;
-    hom A B := 𝐂 B A;
-    id _ := id;
-    comp _ _ _ f g := g ∘ f;
-    idl := @idr 𝐂;
-    idr := @idl 𝐂;
-  |}.
-Next Obligation.
-  repeat intro. by apply: comp_eqv.
-Qed.
-Next Obligation.
-  symmetry. apply compA.
-Qed.
+(* We can already toy with the structure by defining a few categories.
+   Note that [Program] allows you to only fill in explicitely the data in teh definition of the structure.
+   It will try to solve the properties automatically, and will provide them to you as obligations to solve interactively otherwise.
+ *)
+Section example_categories.
 
-(** category of types and functions *)
-Program Definition TYPES: CATEGORY :=
-  {|
-    ob := Type;
-    hom A B := eq_setoid (A -> B);
-    id _ := fun x => x;
-    comp _ _ _ f g := fun x => f (g x);
-  |}.
+  (** The category with a single object, and a single morphism. *)
+  Program Definition UNIT: CATEGORY :=
+    {|
+      ob             := unit;
+      hom _ _        := unit;
+      id _           := tt;
+      comp _ _ _ _ _ := tt;
+    |}.
+  Next Obligation. by destruct f. Qed.
+  Next Obligation. by destruct f. Qed.
 
-(** single object/morphism category *)
-Program Definition UNIT: CATEGORY :=
-  {|
-    ob := unit;
-    hom _ _ := unit;
-    id _ := tt;
-    comp _ _ _ _ _ := tt;
-  |}.
-Next Obligation. by destruct f. Qed.
-Next Obligation. by destruct f. Qed.
+  (** Important for us: the category of types and functions *)
+  Program Definition TYPES: CATEGORY :=
+    {|
+      ob := Type;
+      hom A B := eq_setoid (A -> B);
+      id _ := fun x => x;
+      comp _ _ _ f g := fun x => f (g x);
+    |}.
 
+  (** dual category (SKIP??) *)
+  Program Definition dual (𝐂: CATEGORY): CATEGORY :=
+    {|
+      ob := ob 𝐂;
+      hom A B := 𝐂 B A;
+      id _ := id;
+      comp _ _ _ f g := g ∘ f;
+      idl := @idr 𝐂;
+      idr := @idl 𝐂;
+    |}.
+  Next Obligation.
+    repeat intro. by apply: comp_eqv.
+  Qed.
+  Next Obligation.
+    symmetry. apply compA.
+  Qed.
+
+  (* TODO: other examples. Example for the students to define *)
+
+End example_categories.
 
 (** * epi/monos (SKIP??) *)
 Section epimono.
@@ -63,7 +99,6 @@ Section epimono.
   Definition epi {A B: 𝐂} (f: A ~> B) := forall C (g h: B ~> C), g ∘ f ≡ h ∘ f -> g ≡ h.
   Definition mono {A B: 𝐂} (f: A ~> B) := forall C (g h: C ~> A), f ∘ g ≡ f ∘ h -> g ≡ h.
 End epimono.
-
 
 (** * isomorphisms *)
 Section iso.
@@ -103,7 +138,6 @@ End iso.
 Notation "i ^1" := (fwd i) (at level 20).
 Notation "i ^-1" := (bwd i) (at level 20).
 Infix "≃" := iso (at level 70).
-
 
 (** * initial and final objects *)
 Section universal.
