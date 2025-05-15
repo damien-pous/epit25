@@ -16,3 +16,6 @@ Infix "×" := prod (at level 40).
 
 Axiom funext: forall A B (f g: A -> B), (forall a, f a = g a) -> f = g.
 Axiom propext: forall A B: Prop, (A <-> B) -> A = B.
+
+Lemma funext': forall A B (f g: A -> B), f=g -> forall a, f a = g a.
+Proof. by move=>????->. Qed.

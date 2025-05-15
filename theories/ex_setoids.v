@@ -97,7 +97,7 @@ Qed.
 
 Lemma init_nat_alg: initial nat_alg.
 Proof.
-  unshelve eapply Build_initial'.
+  unshelve esplit.
   - intro f. unshelve eexists. unshelve eexists.
     elim. exact (alg_bod f None).
     intros _ x. exact (alg_bod f (Some x)).
@@ -147,7 +147,7 @@ Defined.
 
 Theorem final_conat_coalg: final conat_coalg.
 Proof.
-  split.
+  unshelve esplit.
   - intro f.
     set g := cofix CH x :=
         match coalg_bod f x with
@@ -267,7 +267,7 @@ Qed.
 
 Lemma init_empty_alg A: initial (empty_alg A).
 Proof.
-  unshelve eapply Build_initial'.
+  unshelve esplit.
   - intro f. unshelve eexists. unshelve eexists.
     by case. by case. by case.
   - by cbn.

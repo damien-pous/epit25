@@ -1,7 +1,6 @@
 From epit Require Import cats.
 
 (** * case-study in the category of types and functions *)
-Module TYPES.
 
 Canonical TYPES.
 
@@ -50,40 +49,53 @@ Qed.
 
 Inductive nat := O | S(n: nat).
 
-Definition nat_alg: ALGEBRA F_option :=
-  {| alg_car := nat : ob TYPES;
-     alg_bod x := match x with Some x => S x | None => O end |}.
+Definition nat_pack (n: option nat): nat :=
+  match n with Some n => S n | None => O end.
+
+Fixpoint nat_iter {X} (f: option X -> X) (n: nat) :=
+  match n with
+  | O => f None
+  | S n => f (Some (nat_iter f n))
+  end.
+
+Program Definition nat_alg: ALGEBRA F_option :=
+  {| alg_car := nat;
+     alg_bod := nat_pack |}.
 
 Lemma init_nat_alg: initial nat_alg.
 Proof.
-  unshelve eapply Build_initial'.
-  - intro f. unshelve eexists.
-    elim. exact (alg_bod f None).
-    intros _ x. exact (alg_bod f (Some x)).
-    by apply funext=>[[|]].
-  - simpl. intros X g. apply funext.
-    elim=>/=[|n IH]. apply (f_equal (fun f => f None) (algE g)).
-    rewrite -IH. apply (f_equal (fun f => f (Some _)) (algE g)).
+  unshelve eexists. 
+  - intro f. exists (nat_iter (alg_bod f)). 
+    by apply funext; case. 
+  - intros X g. apply funext. simpl. intro n. 
+    induction n as [|n IH]; simpl.
+    -- apply (funext' (algE g) None).
+    -- rewrite -IH. apply (funext' (algE g) (Some _)). 
 Qed.
 
 (** ** `conatural unary numbers' almost form the final coalgebra of the [option] functor *)
 
 CoInductive conat := coO | coS(n: conat).
 
+Definition conat_pack (n: conat): option conat :=
+  match n with coS n => Some n | coO => None end.
+
 Definition conat_coalg: COALGEBRA F_option :=
   {| coalg_car := conat: ob TYPES;
-     coalg_bod x := match x with coS n => Some n | coO => None end |}.
+     coalg_bod := conat_pack |}.
 
+CoFixpoint conat_coiter {X} (f: X -> option X) (x: X): conat :=
+  match f x with
+  | None => coO
+  | Some y => coS (conat_coiter f y)
+  end.
+  
 Lemma final_conat_coalg: final conat_coalg.
 Proof.
-  split.
-  - intro f. unshelve eexists; cbn.
-    cofix CH. intro x. destruct (coalg_bod f x) as [c|].
-    apply coS, CH, c.
-    apply coO.
-    apply funext=>x. by destruct (coalg_bod f x).
-  - intros X f g.
-    admit.
+  unshelve eexists.
+  - intro f. exists (conat_coiter (coalg_bod f)).
+    apply funext=>x/=. by destruct (coalg_bod f x).
+  - simpl. intros X f g.
 Abort.
 
 
@@ -97,7 +109,7 @@ Program Definition empty_alg A: ALGEBRA (F_times A) :=
 
 Lemma init_empty_alg A: initial (empty_alg A).
 Proof.
-  unshelve eapply Build_initial'.
+  unshelve esplit.
   - intro f. unshelve eexists. by case.
     apply funext. by move=>[?[]].
   - simpl. intros X g. apply funext. by case.
@@ -114,12 +126,11 @@ Program Definition stream_coalg A: COALGEBRA (F_times A) :=
 
 Lemma final_stream_coalg A: final (stream_coalg A).
 Proof.
-  split.
+  unshelve esplit.
   - intro f. unshelve eexists; cbn.
     cofix CH. intro x. destruct (coalg_bod f x) as [a y]. exact (cons a (CH y)).
     apply funext=>x; simpl. by destruct (coalg_bod f x).
   - intros X f g.
-    admit.
 Abort.
 
 (** ** Polynomial Functors
@@ -178,7 +189,7 @@ Section containers.
   (* And indeed, [w_alg] is initial *)
   Lemma init_w_alg : initial w_alg.
   Proof.
-    unshelve eapply Build_initial'.
+    unshelve esplit.
     - intros [X f].
       unshelve eexists.
       elim. intros a _ c.
@@ -202,6 +213,4 @@ Section containers.
   Qed.
 
 End containers.
-
-End TYPES.
 

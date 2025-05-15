@@ -144,34 +144,35 @@ Section universal.
   Context {𝐂: CATEGORY}.
   Record initial (I: 𝐂) := {
       init_mor:> forall X, I ~> X;
-      init_unq: forall X (f g: I ~> X), f ≡ g;
+      init_unq': forall X (f: I ~> X), f ≡ init_mor X;
     }.
-  (* SKIP? *)
-  Program Definition Build_initial' I (f: forall X, I ~> X) (Hf: forall X (g: I ~> X), g ≡ f X): initial I :=
-    {| init_mor := f |}.
-  Next Obligation. intros; transitivity (f X); [|symmetry]; apply Hf. Qed.
-
+  Lemma init_unq I (i: initial I) X (f g: I ~> X): f ≡ g.
+  Proof. by rewrite (init_unq' i _ f) (init_unq' i _ g). Qed.
+          
   Lemma initial_unique I I': initial I -> initial I' -> I ≃ I'.
   Proof.
     intros i i'.
     exists (i _) (i' _).
-    apply (init_unq i').
+    apply (init_unq i'). 
     apply (init_unq i).
   Qed.
 
   Record final (Z: 𝐂) := {
       fin_mor:> forall X, X ~> Z;
       fin_unq: forall X (f g: X ~> Z), f ≡ g;
+      (* fin_unq': forall X (f: X ~> Z), f ≡ fin_mor X; *)
     }.
+  (* Lemma fin_unq Z (z: final Z) X (f g: X ~> Z): f ≡ g. *)
+  (* Proof. by rewrite (fin_unq' z _ f) (fin_unq' z _ g). Qed. *)
   Program Definition Build_final' Z (f: forall X, X ~> Z) (Hf: forall X (g: X ~> Z), g ≡ f X): final Z :=
     {| fin_mor := f |}.
   Next Obligation. intros; transitivity (f X); [|symmetry]; apply Hf. Qed.
-
+  
   Lemma final_unique Z Z': final Z -> final Z' -> Z ≃ Z'.
   Proof.
     intros f f'.
     exists (f' _) (f _).
-    apply (fin_unq f').
+    apply (fin_unq f'). 
     apply (fin_unq f).
   Qed.
 End universal.

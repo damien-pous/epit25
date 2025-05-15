@@ -77,7 +77,7 @@ Program Definition nat_alg: ALGEBRA F_option :=
 
 Lemma init_nat_alg: initial nat_alg.
 Proof.
-  unshelve eapply Build_initial'.
+  unshelve esplit.
   - intro f. unshelve eexists.
     elim. exact (alg_bod f None).
     intros _ x. exact (alg_bod f (Some x)).
@@ -96,7 +96,7 @@ Definition conat_coalg: COALGEBRA F_option :=
 
 Lemma final_conat_coalg: final conat_coalg.
 Proof.
-  split.
+  unshelve esplit.
   - intro f. unshelve eexists; cbn.
     cofix CH. intro x. destruct (coalg_bod f x) as [c|].
     apply coS, CH, c.
