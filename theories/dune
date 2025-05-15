@@ -1,0 +1,8 @@
+(include_subdirs qualified)
+(dirs :standard \ experiments)
+
+(coq.theory
+ (name epit)
+ (package coq-epit)
+ (theories Coinduction)
+ )
