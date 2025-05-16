@@ -18,14 +18,22 @@ From epit Require Export setoids.
 
 (** * Part 1: Categories
 
+    In this first course, we aim specifically at the formalization of initial algebras and final coalgebras. The shortest path therefore takes us through defining:
+    - categories and functors
+    - isomorphisms
+    - inital/final objects
+    - (co)algebras
+
+*)
+
+(** * 1. Categories
+
     We start by formalizing the bits of category theory we need to build up to initial algebras and final coalgebras.
-    Importantly, notice that objects are a Type, while the homset between two objects are a Setoid.
+    Importantly, notice that objects are captured as a Type, while the homset between two objects are a Setoid.
     Indeed, thinking of standard examples, arrows may be functions (we want to consider them extensionally),
     lambda termes (we want to consider them up-to βε), etc...
     We package in the same structure both the data and the axioms.
 *)
-
-(** * Categories *)
 
 Structure CATEGORY :=
   {
@@ -72,6 +80,29 @@ Section example_categories.
       comp _ _ _ f g := fun x => f (g x);
     |}.
 
+
+  (* TODO: other examples. Example for the students to define *)
+  (** TODO Exercise ? Define the category of relations of Types *)
+  Fail Program Definition REL: CATEGORY := {|  |}.
+    (* {|
+      ob := Type;
+      hom A B := A -> B -> Prop;
+      id _ := @eq _;
+      comp _ _ _ R S := fun x y => exists z, S x z /\ R z y;
+    |}.
+  Next Obligation.
+    cbn. repeat intro. split; intros (z & ? & ?); exists z; split; firstorder.
+  Qed.
+  Next Obligation.
+    cbn; firstorder; subst; auto.
+  Qed.
+  Next Obligation.
+    cbn; firstorder; subst; auto.
+  Qed.
+  Next Obligation.
+    cbn; firstorder.
+  Qed. *)
+
   (** dual category (SKIP??) *)
   Program Definition dual (𝐂: CATEGORY): CATEGORY :=
     {|
@@ -79,6 +110,7 @@ Section example_categories.
       hom A B := 𝐂 B A;
       id _ := id;
       comp _ _ _ f g := g ∘ f;
+
       idl := @idr 𝐂;
       idr := @idl 𝐂;
     |}.
@@ -89,9 +121,11 @@ Section example_categories.
     symmetry. apply compA.
   Qed.
 
-  (* TODO: other examples. Example for the students to define *)
-
 End example_categories.
+
+
+
+(** 2. Isomorphisms *)
 
 (** * epi/monos (SKIP??) *)
 Section epimono.
@@ -106,6 +140,7 @@ Section iso.
   Record iso (A B: 𝐂) :=
     { fwd: A ~> B;
       bwd: B ~> A;
+
       isoE: fwd ∘ bwd ≡ id;
       isoE': bwd ∘ fwd ≡ id
     }.
@@ -139,9 +174,14 @@ Notation "i ^1" := (fwd i) (at level 20).
 Notation "i ^-1" := (bwd i) (at level 20).
 Infix "≃" := iso (at level 70).
 
-(** * initial and final objects *)
+
+
+(** * 3. Initial and final objects *)
+
 Section universal.
+
   Context {𝐂: CATEGORY}.
+
   Record initial (I: 𝐂) := {
       init_mor:> forall X, I ~> X;
       init_unq': forall X (f: I ~> X), f ≡ init_mor X;
@@ -175,19 +215,44 @@ Section universal.
     apply (fin_unq f'). 
     apply (fin_unq f).
   Qed.
+
 End universal.
 
+Section example_initial_final.
 
-(** * functors *)
+  (* Exercise (?) Define the initial and final objects in TYPES *)
+
+  (* Definition initial_types : @initial TYPES False.
+  unshelve eapply Build_initial'.
+  refine (fun _ abs => match abs : False with end).
+  intros.
+  apply funext; intros [].
+  Qed.
+
+  Definition final_types : @final TYPES unit.
+  unshelve eapply Build_final'.
+  refine (fun _ _ => tt).
+  intros.
+  apply funext; intros a; destruct (g a); reflexivity.
+  Qed. *)
+
+End example_initial_final.
+
+
+
+(** * 4. Functors *)
+
 Record FUNCTOR (𝐂 𝐃: CATEGORY) :=
   {
     app':> 𝐂 -> 𝐃;
     app: forall {A B}, 𝐂 A B -> 𝐃 (app' A) (app' B);
+
     app_eqv:: forall {A B}, Proper (eqv ==> eqv) (@app A B);
     app_id: forall {A}, app (id: A ~> A) ≡ id;
     app_comp: forall {U V W} (f: U ~> V) (g: V ~> W), app (g ∘ f) ≡ app g ∘ app f;
   }.
 
+(* The identity functor *)
 Program Definition functor_id {𝐂}: FUNCTOR 𝐂 𝐂 :=
   {|
     app' A := A;
@@ -197,6 +262,7 @@ Next Obligation.
   by intros ???.
 Qed.
 
+(* Composition of functors *)
 Program Definition functor_comp {𝐂 𝐃 𝐄} (G: FUNCTOR 𝐃 𝐄) (F: FUNCTOR 𝐂 𝐃): FUNCTOR 𝐂 𝐄 :=
   {|
     app' A := G (F A);
@@ -208,6 +274,7 @@ Qed.
 Next Obligation. cbn; intros. by rewrite 2!app_id. Qed.
 Next Obligation. cbn; intros. by rewrite 2!app_comp. Qed.
 
+(* Constant functor *)
 Program Definition functor_constant {𝐂 𝐃: CATEGORY} (A: 𝐃): FUNCTOR 𝐂 𝐃:=
   {| app' _ := A; app _ _ _ := id |}.
 Next Obligation. by cbn; intros. Qed.
@@ -220,11 +287,17 @@ Proof.
   by rewrite -app_comp isoE' app_id.
 Qed.
 
-(** * algebras *)
+
+
+(** * 5. Algebras *)
+
 Section algebra.
   Context {𝐂: CATEGORY}.
   Section s.
+  
+  (* We fix in the whole section a functor [F]. *)
   Variable F: FUNCTOR 𝐂 𝐂.
+
   Record ALGEBRA := alg
     {
       alg_car:> 𝐂;
@@ -234,6 +307,7 @@ Section algebra.
   Record alg_hom (A B: ALGEBRA) :=
     {
       alg_hom_:> A ~> B;
+
       algE: alg_hom_ ∘ A ≡ B ∘ app F alg_hom_
     }.
   Arguments alg_hom_ {_ _}.
@@ -253,6 +327,7 @@ Section algebra.
   Canonical alg_hom_setoid (A B: ALGEBRA) :=
     kern_setoid _ (@alg_hom_ A B).
 
+  (* F-algebras form a category *)
   Program Canonical Structure ALGEBRAS: CATEGORY :=
     {| ob := ALGEBRA ; id := @alg_id ; comp := @alg_comp |}.
   Next Obligation. intros * f f' H g g' G. by apply comp_eqv. Qed.
@@ -262,6 +337,8 @@ Section algebra.
 
   Section initial_algebra.
     Context {I: ALGEBRA} (H: initial I).
+
+    (* Lambek's lemma: initial F-algebras are fixpoints for F. *)
     Definition Lambek: F I ≃ I.
     Proof.
       set i := alg_bod I.

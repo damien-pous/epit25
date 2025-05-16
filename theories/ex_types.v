@@ -1,12 +1,16 @@
 From epit Require Import cats.
 
-(** * case-study in the category of types and functions *)
+(** * Case-study in the category of types and functions
+
+  In this file, we set ourselves in TYPES, and study some inital algebras and final coalgebras.
+*)
 
 Canonical TYPES.
 
-(** ** endofunctors on TYPES *)
+(** ** Endofunctors on TYPES *)
 Notation FUNCTOR := (FUNCTOR TYPES TYPES).
 
+(** * Examples of functors *)
 
 (** A×X *)
 Program Definition F_times A: FUNCTOR :=
@@ -45,22 +49,27 @@ Next Obligation.
   destruct Hx as [? [? ->]]; eauto.
 Qed.
 
+(** * Initial algebras on TYPES *)
+
 (** ** natural unary numbers form the initial algebra of the [option] functor *)
 
-Inductive nat := O | S(n: nat).
+(* This is the exact definition you can find in the standard library *)
+Inductive nat := O | S (n: nat).
 
 Definition nat_pack (n: option nat): nat :=
   match n with Some n => S n | None => O end.
 
+(* The pair (O, S) defines an option-algebra  *)
+Program Definition nat_alg: ALGEBRA F_option :=
+  {| alg_car := nat;
+     alg_bod := nat_pack |}.
+
+(* Remains to prove its initiality. *)
 Fixpoint nat_iter {X} (f: option X -> X) (n: nat) :=
   match n with
   | O => f None
   | S n => f (Some (nat_iter f n))
   end.
-
-Program Definition nat_alg: ALGEBRA F_option :=
-  {| alg_car := nat;
-     alg_bod := nat_pack |}.
 
 Lemma init_nat_alg: initial nat_alg.
 Proof.
@@ -72,6 +81,49 @@ Proof.
     -- apply (funext' (algE g) None).
     -- rewrite -IH. apply (funext' (algE g) (Some _)). 
 Qed.
+
+(* Having established [init_nat_alg], we can see this result less as a fact about [nat] itself than about [option], proving it admits an initial algebra.
+  With this knowledge, we can work over an abstract view of [nat].
+*)
+Module abstract_nat.
+  Parameter A: ALGEBRA F_option.
+  Parameter I: initial A.
+  (* We define [nat] as the carrier of the initial algebra *)
+  Definition nat := alg_car A.
+
+  (* We get a constructor and a destructor by Lambek *)
+  Definition i: F_option nat ≃ nat := Lambek I.
+  Definition c: option nat -> nat  := fwd i.
+  Definition d: nat -> option nat  := bwd i.
+
+  (* 0 and successors *)
+  Definition O: nat := c None.
+  Definition S: nat -> nat := @comp TYPES _ _ _ c Some.
+
+  (* And a recursion principle *)
+  Definition pack    {X : Type} (x : X) (s: X -> X) : ALGEBRA F_option := @alg _ F_option X (fun ox => match ox with | None => x | Some y => s y end).
+  Definition nat_rec {X : Type} (x : X) (s: X -> X) := rec I (pack x s).
+  
+  Lemma nat_recO {X : Type} (x : X) (s: X -> X) : nat_rec x s O = x.
+  Proof.
+    pose proof (recE I (pack x s)) as H.
+    pose proof (f_equal (fun f => f None) H) as EQ.
+    cbn in EQ. rewrite <- EQ at 2.
+    unfold nat_rec.
+    (* TODO FIX *)
+  Admitted.
+      
+  Lemma nat_recS {X : Type} (x : X) (s: X -> X): forall n, nat_rec x s (S n) = s (nat_rec x s n).
+  Admitted.
+
+  Definition add (n m : nat) : nat := nat_rec m S n.
+  Lemma addO n: add O n = n.
+  Proof. apply nat_recO. Qed.
+
+  Lemma addS n m: add (S n) m = S (add n m).
+  Proof. apply nat_recS. Qed.
+
+End abstract_nat.
 
 (** ** `conatural unary numbers' almost form the final coalgebra of the [option] functor *)
 
