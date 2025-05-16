@@ -337,20 +337,25 @@ Section algebra.
 
   Section initial_algebra.
     Context {I: ALGEBRA} (H: initial I).
+    Section l.
 
     (* Lambek's lemma: initial F-algebras are fixpoints for F. *)
-    Definition Lambek: F I ≃ I.
-    Proof.
-      set i := alg_bod I.
-      set FI := {| alg_car := F I; alg_bod := app F i |}.
-      set j := H FI.
-      have ij: i ∘ j ≡ id. {
-        set i' := Build_alg_hom FI I i (eqv_refl _).
-        apply (init_unq H I (i' ∘ H FI) (alg_id _)).
-      }
-      exists i (j: 𝐂 _ _); trivial.
-      by rewrite (algE j) /= -app_comp ij app_id.
+    Let i := alg_bod I.
+    Let FI := {| alg_car := F I; alg_bod := app F i |}.
+    Let j := H FI.
+    Lemma Lambek1: i ∘ j ≡ id.
+    Proof. 
+      set i' := Build_alg_hom FI I i (eqv_refl _).
+      apply (init_unq H I (i' ∘ H FI) (alg_id _)).
     Qed.
+    
+    Program Definition Lambek: F I ≃ I :=
+      {| fwd :=i; bwd := j; isoE := Lambek1|}. 
+    Next Obligation.
+      intros.      
+      by rewrite (algE j) /= -app_comp Lambek1 app_id.
+    Qed.
+    End l.
 
     (* SKIP?? *)
     Definition rec (X: ALGEBRA): 𝐂 I X := H X.

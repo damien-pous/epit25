@@ -108,10 +108,8 @@ Module abstract_nat.
   Proof.
     pose proof (recE I (pack x s)) as H.
     pose proof (f_equal (fun f => f None) H) as EQ.
-    cbn in EQ. rewrite <- EQ at 2.
-    unfold nat_rec.
-    (* TODO FIX *)
-  Admitted.
+    cbn in EQ. apply EQ.
+  Qed.
       
   Lemma nat_recS {X : Type} (x : X) (s: X -> X): forall n, nat_rec x s (S n) = s (nat_rec x s n).
   Admitted.
