@@ -106,14 +106,15 @@ Module abstract_nat.
   
   Lemma nat_recO {X : Type} (x : X) (s: X -> X) : nat_rec x s O = x.
   Proof.
-    pose proof (recE I (pack x s)) as H.
-    pose proof (f_equal (fun f => f None) H) as EQ.
-    cbn in EQ. apply EQ.
+    apply (funext' (recE I (pack x s)) None).
   Qed.
       
   Lemma nat_recS {X : Type} (x : X) (s: X -> X): forall n, nat_rec x s (S n) = s (nat_rec x s n).
-  Admitted.
-
+  Proof.
+    intros n.
+    apply (funext' (recE I (pack x s)) (Some n)).
+  Qed.
+  
   Definition add (n m : nat) : nat := nat_rec m S n.
   Lemma addO n: add O n = n.
   Proof. apply nat_recO. Qed.
