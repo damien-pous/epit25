@@ -5,8 +5,9 @@ From epit Require Import cats.
   In this file, we ground ourselves in category TYPES. 
   In this setting, we study some concrete inital algebras and final coalgebras.
 
-  We allow ourselves the use of the functional extensionality axiom:
+  We allow ourselves the use of the functional and propositional extensionality axioms:
   [funext : (forall x, f x = g x) -> f = g]
+  [propext : (forall P Q: Prop, P <-> Q) -> P = Q]
 *)
 
 Canonical TYPES.
@@ -167,6 +168,7 @@ cbv; intros; apply funext; intros [[] |]; by subst.
 Defined.
 
 (* Why do I get a weird error with [Program] ? *)
+(* because strangely, Program Definition does not propagate the type annotation early enough  *)
 (* 
 Program Definition F_otimes' A : FUNCTOR :=
   {| app' X := option (A × X); 
@@ -179,7 +181,7 @@ Next Obligation.
    apply funext. intros [[] |]; reflexivity.
 Fail Qed. *)
 
-(* The pair (O, S) defines an option-algebra  *)
+(* The pair (nil, cons) defines a list-algebra  *)
 Program Definition list_alg A: ALGEBRA (F_otimes A) :=
   {| alg_car := list A;
      alg_bod := fun x => match x with | None => nil | Some (a,x) => a :: x end |}.

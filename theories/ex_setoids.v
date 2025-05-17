@@ -293,13 +293,19 @@ Qed.
 
 Canonical stream_setoid A := Setoid.build (stream A) bisim Equivalence_bisim.
 
+Instance head_eqv A: Proper (bisim ==> eqv) (@head A).
+Proof. by move=>s t []. Qed.
+
+Instance tail_eqv A: Proper (bisim ==> bisim) (@tail A).
+Proof. by move=>s t []. Qed.
+
 Lemma bisimulation {A} (n m: stream A):
   n ≡ m <-> head n ≡ head m /\ tail n ≡ tail m.
 Proof.
   split.
-  - by inversion_clear 1.
+  - by inversion 1. 
   - by case; constructor.
-Defined.
+Qed.
 
 Definition stream_coalg A: COALGEBRA (F_times A).
   refine (@coalg _ (F_times A) (stream_setoid A)
@@ -307,6 +313,9 @@ Definition stream_coalg A: COALGEBRA (F_times A).
 Proof.
   by move=>s t/bisimulation.
 Defined.
+
+CoFixpoint stream_corec {A: Setoid} {X} (f: X -> A×X) x :=
+  let '(a,y) := f x in cons a (stream_corec f y).
 
 Lemma final_stream_coalg A: final (stream_coalg A).
 Proof.
@@ -319,13 +328,35 @@ Proof.
        constructor. apply xy. cbn. apply CH, xy.
     -- move=>x/=; split; reflexivity.
   - intros X f g.
-    cofix CH. move=>x.
-    have [/=fx1 fx2] := coalgE f x.
-    have [/=gx1 gx2] := coalgE g x.
+    (** proof with implicit upto technique, not guarded **)
+    (* cofix CH. move=>x. *)
+    (* destruct (coalgE f x) as [fx1 fx2].  *)
+    (* destruct (coalgE g x) as [gx1 gx2]. *)
+    (* simpl in *.  *)
+    (* constructor. *)
+    (* -- by rewrite fx1 gx1. *)
+    (* -- setoid_rewrite fx2. setoid_rewrite gx2. apply (CH _). *)
+       
+    (** making the up-to technique explicit, now guarded **)
+    suff G: forall x fx gx, fx ≡ coalg_hom_ f x -> gx ≡ coalg_hom_ g x -> fx ≡ gx.
+    by move=>y; apply: G.
+    cofix CH. move=>x fx gx /=Hfx Hgx.
+    destruct (coalgE f x) as [fx1 fx2]. 
+    destruct (coalgE g x) as [gx1 gx2].
+    simpl in *. 
     constructor.
-    -- by rewrite fx1 gx1.
-    -- setoid_rewrite fx2. setoid_rewrite gx2. apply (CH _).
-Admitted.    (* not guarded again, possibly because of the implicit upto in the second supbroof? *)
+    (** why does rewrite fail?? **)
+    -- Fail rewrite Hfx. 
+       etransitivity. apply head_eqv. rewrite Hfx. reflexivity.
+       setoid_rewrite fx1. symmetry.
+       etransitivity. apply head_eqv. rewrite Hgx. reflexivity.
+       apply gx1. 
+    -- apply: CH.
+       etransitivity. apply tail_eqv. rewrite Hfx. reflexivity.
+       apply fx2. 
+       etransitivity. apply tail_eqv. rewrite Hgx. reflexivity.
+       apply gx2.
+Qed.
 
 End stream2.
 
