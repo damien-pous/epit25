@@ -2,7 +2,11 @@ From epit Require Import cats.
 
 (** * Case-study in the category of types and functions
 
-  In this file, we set ourselves in TYPES, and study some inital algebras and final coalgebras.
+  In this file, we ground ourselves in category TYPES. 
+  In this setting, we study some concrete inital algebras and final coalgebras.
+
+  We allow ourselves the use of the functional extensionality axiom:
+  [funext : (forall x, f x = g x) -> f = g]
 *)
 
 Canonical TYPES.
@@ -10,7 +14,9 @@ Canonical TYPES.
 (** ** Endofunctors on TYPES *)
 Notation FUNCTOR := (FUNCTOR TYPES TYPES).
 
-(** * Examples of functors *)
+
+
+(** * 1. Examples of functors *)
 
 (** A×X *)
 Program Definition F_times A: FUNCTOR :=
@@ -49,10 +55,12 @@ Next Obligation.
   destruct Hx as [? [? ->]]; eauto.
 Qed.
 
-(** * Initial algebras on TYPES *)
+
+(** * 2. Examples of Initial algebras on TYPES *)
 
 (** ** natural unary numbers form the initial algebra of the [option] functor *)
 
+Section initial_option.
 (* This is the exact definition you can find in the standard library *)
 Inductive nat := O | S (n: nat).
 
@@ -81,6 +89,8 @@ Proof.
     -- apply (funext' (algE g) None).
     -- rewrite -IH. apply (funext' (algE g) (Some _)). 
 Qed.
+
+End initial_option.
 
 (* Having established [init_nat_alg], we can see this result less as a fact about [nat] itself than about [option], proving it admits an initial algebra.
   With this knowledge, we can work over an abstract view of [nat].
@@ -114,7 +124,7 @@ Module abstract_nat.
     intros n.
     apply (funext' (recE I (pack x s)) (Some n)).
   Qed.
-  
+
   Definition add (n m : nat) : nat := nat_rec m S n.
   Lemma addO n: add O n = n.
   Proof. apply nat_recO. Qed.
@@ -124,31 +134,7 @@ Module abstract_nat.
 
 End abstract_nat.
 
-(** ** `conatural unary numbers' almost form the final coalgebra of the [option] functor *)
-
-CoInductive conat := coO | coS(n: conat).
-
-Definition conat_pack (n: conat): option conat :=
-  match n with coS n => Some n | coO => None end.
-
-Definition conat_coalg: COALGEBRA F_option :=
-  {| coalg_car := conat: ob TYPES;
-     coalg_bod := conat_pack |}.
-
-CoFixpoint conat_coiter {X} (f: X -> option X) (x: X): conat :=
-  match f x with
-  | None => coO
-  | Some y => coS (conat_coiter f y)
-  end.
-  
-Lemma final_conat_coalg: final conat_coalg.
-Proof.
-  unshelve eexists.
-  - intro f. exists (conat_coiter (coalg_bod f)).
-    apply funext=>x/=. by destruct (coalg_bod f x).
-  - simpl. intros X f g.
-Abort.
-
+Section initial_times.
 
 (** ** the empty set is the initial algebra of the [AxX] functor *)
 
@@ -166,25 +152,60 @@ Proof.
   - simpl. intros X g. apply funext. by case.
 Qed.
 
+End initial_times.
 
-(** ** streams are almost a final coalgebra of the [AxX] functor *)
+(* Exercise? *)
+Section initial_otimes.
+  (** option (A×X) *)
+Definition F_otimes (A : Type): FUNCTOR.
+unshelve econstructor.
+exact (fun X => option (A × X)).
+exact (fun X Y f => Option.map (fun ax => (ax.1,f ax.2))).
+cbv; intros; apply funext; intros [[] |]; by subst.
+cbv; intros; apply funext; intros [[] |]; by subst.
+cbv; intros; apply funext; intros [[] |]; by subst.
+Defined.
 
-CoInductive stream A := cons { head: A; tail: stream A }.
+(* Why do I get a weird error with [Program] ? *)
+(* 
+Program Definition F_otimes' A : FUNCTOR :=
+  {| app' X := option (A × X); 
+     app X Y f := Option.map (fun ax => (ax.1,f ax.2)) |}.
+Next Obligation.
+  intros. apply funext; by intros [[] |].
+Qed.
+Next Obligation.
+  intros.
+   apply funext. intros [[] |]; reflexivity.
+Fail Qed. *)
 
-Program Definition stream_coalg A: COALGEBRA (F_times A) :=
-  {| coalg_car := stream A;
-     coalg_bod s := (head s, tail s) |}.
+(* The pair (O, S) defines an option-algebra  *)
+Program Definition list_alg A: ALGEBRA (F_otimes A) :=
+  {| alg_car := list A;
+     alg_bod := fun x => match x with | None => nil | Some (a,x) => a :: x end |}.
 
-Lemma final_stream_coalg A: final (stream_coalg A).
+(* Remains to prove its initiality. *)
+Fixpoint list_iter {A X} (f: option (A × X) -> X) (l: list A) :=
+  match l with
+  | nil    => f None
+  | a :: l => f (Some (a, (list_iter f l)))
+  end.
+
+Lemma init_list_alg A: initial (list_alg A).
 Proof.
-  unshelve esplit.
-  - intro f. unshelve eexists; cbn.
-    cofix CH. intro x. destruct (coalg_bod f x) as [a y]. exact (cons a (CH y)).
-    apply funext=>x; simpl. by destruct (coalg_bod f x).
-  - intros X f g.
-Abort.
+  unshelve eexists. 
+  - intro f. exists (list_iter (alg_bod f)). 
+    apply funext. by case; [case |].
+  - intros X g. apply funext. simpl. intros l.
+    induction l as [|a l IH]; simpl.
+    -- apply (funext' (algE g) None).
+    -- rewrite -IH. apply (funext' (algE g) (Some (a, _))). 
+Qed.
 
-(** ** Polynomial Functors
+End initial_otimes.
+
+
+(** ** 3. Polynomial Functors
 
   We have constructed and proven by hand two initial algebras. We can avoid some tedious work by capturing a large class at once: polynomial functors, corresponding intuitively to functors having the shape of a formal series [λX.Σ X^n].
   Conveniently, these functors admit a simple representation as *containers*. In the following section,
@@ -265,3 +286,50 @@ Section containers.
 
 End containers.
 
+
+
+(** * 4. Example of final coalgebras in TYPES *)
+
+(** ** `conatural unary numbers' almost form the final coalgebra of the [option] functor *)
+
+CoInductive conat := coO | coS(n: conat).
+
+Definition conat_pack (n: conat): option conat :=
+  match n with coS n => Some n | coO => None end.
+
+Definition conat_coalg: COALGEBRA F_option :=
+  {| coalg_car := conat: ob TYPES;
+     coalg_bod := conat_pack |}.
+
+CoFixpoint conat_coiter {X} (f: X -> option X) (x: X): conat :=
+  match f x with
+  | None => coO
+  | Some y => coS (conat_coiter f y)
+  end.
+  
+Lemma final_conat_coalg: final conat_coalg.
+Proof.
+  unshelve eexists.
+  - intro f. exists (conat_coiter (coalg_bod f)).
+    apply funext=>x/=. by destruct (coalg_bod f x).
+  - simpl. intros X f g.
+Abort.
+
+
+
+(** ** streams are almost a final coalgebra of the [AxX] functor *)
+
+CoInductive stream A := cons { head: A; tail: stream A }.
+
+Program Definition stream_coalg A: COALGEBRA (F_times A) :=
+  {| coalg_car := stream A;
+     coalg_bod s := (head s, tail s) |}.
+
+Lemma final_stream_coalg A: final (stream_coalg A).
+Proof.
+  unshelve esplit.
+  - intro f. unshelve eexists; cbn.
+    cofix CH. intro x. destruct (coalg_bod f x) as [a y]. exact (cons a (CH y)).
+    apply funext=>x; simpl. by destruct (coalg_bod f x).
+  - intros X f g.
+Abort.

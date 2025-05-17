@@ -18,6 +18,7 @@ Pitch : Quels sont les challenges pour avoir des types coinductifs qui soient vr
 
 -> initiale ok direct : exemple sur list
 -> finales problème égalité
+Rq: section [abstract_nat] montre que l'on peut travailler abstraitement. Comment motiver que cela puisse être intéressant ? A priori nécessite de parler d'inductive difficile à définir directement en Rocq ?
 
 ### Catégorie dans Setoid
 
