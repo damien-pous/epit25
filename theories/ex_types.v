@@ -214,7 +214,6 @@ End initial_otimes.
 we construct their initial algebras.
  *)
 
-Import SigTNotations.
 Section containers.
 
   (** Containers: a *shape* [A] together with a type family of *positions* [B] *)
@@ -228,7 +227,7 @@ Section containers.
    *)
   Program Definition apply (cont : container) : FUNCTOR :=
     {| app' X := { a : A cont & B cont a -> X};
-       app X Y f := fun x => existT _ x.1 (f ∘ x.2)
+       app X Y f := fun x => existT _ (projT1 x) (f ∘ (projT2 x))
     |}.
   Next Obligation.
     intros ? A.
@@ -258,7 +257,7 @@ Section containers.
 
   Program Definition w_alg : ALGEBRA (apply cont) :=
     {| alg_car := W_sort;
-       alg_bod x := (sup0 x.1 x.2) |}.
+       alg_bod x := (sup0 (projT1 x) (projT2 x)) |}.
 
   (* And indeed, [w_alg] is initial *)
   Lemma init_w_alg : initial w_alg.
@@ -313,7 +312,10 @@ Lemma final_conat_coalg: final conat_coalg.
 Proof.
   unshelve eexists.
   - intro f. exists (conat_coiter (coalg_bod f)).
-    apply funext=>x/=. by destruct (coalg_bod f x).
+    apply funext=>x. simpl.
+    (* anomaly with Coq 8.17.1 ... *)
+    (* by destruct (coalg_bod f x). *) 
+    admit.
   - simpl. intros X f g.
 Abort.
 
@@ -332,6 +334,6 @@ Proof.
   unshelve esplit.
   - intro f. unshelve eexists; cbn.
     cofix CH. intro x. destruct (coalg_bod f x) as [a y]. exact (cons a (CH y)).
-    apply funext=>x; simpl. by destruct (coalg_bod f x).
+    apply funext=>x. cbn. by destruct (coalg_bod f x). 
   - intros X f g.
 Abort.

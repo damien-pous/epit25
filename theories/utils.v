@@ -7,6 +7,7 @@ From Coq Require Export ssreflect ssrfun ssrbool.
 #[global] Obligation Tactic := ((by cbn) || idtac).
 #[global] Set Primitive Projections.
 #[global] Set Universe Polymorphism.
+#[global] Set Warnings "-deprecated-instance-without-locality".
 
 Definition const {X Y} y: X -> Y := fun _ => y.
 Arguments const {_ _} _ _/.

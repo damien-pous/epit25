@@ -2,8 +2,6 @@ From epit Require Import cats.
 
 (** * case-study in the category of setoids and setoid morphisms *)
 
-Module SETOIDS.
-
 (** category of setoids and setoid morphisms *)
 Program Canonical SETOIDS: CATEGORY :=
   {|
@@ -359,5 +357,3 @@ Proof.
 Qed.
 
 End stream2.
-
-End SETOIDS.
