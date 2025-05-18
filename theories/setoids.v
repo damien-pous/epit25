@@ -52,6 +52,7 @@ Proof. apply transitivity. Defined.
 Definition eq_setoid X := Setoid.build X eq eq_equivalence.
 Canonical unit_setoid := eq_setoid unit.
 Canonical bool_setoid := eq_setoid bool.
+Canonical nat_setoid := eq_setoid nat. 
 
 Canonical Prop_setoid := Setoid.build Prop iff _.
 

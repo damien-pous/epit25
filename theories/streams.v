@@ -1,4 +1,4 @@
-(** * Example: Rutten's stream calculus *)
+(** * Rutten's stream calculus *)
 
 From epit Require Import cats.
 From epit Require ex_setoids.
@@ -6,15 +6,16 @@ Require Import Psatz.
 From Coinduction Require Import all. Import CoindNotations.
 Unset Primitive Projections. 
 
-(** we consider streams of natural numbers, for the sake of simplicity *)
+(** here we only consider streams of natural numbers, for the sake of simplicity *)
 CoInductive stream := cons{hd: nat; tl: stream}.
 
-(** the following function characterises (extensional) equality of streams *)
+(** the following monotone function characterises yields bisimilarity as its greatest fixpoint:
+    its post-fixpoints are precisely the bisimulations. *)
 Program Definition b: mon (stream -> stream -> Prop) :=
   {| body R s t := hd s = hd t /\ R (tl s) (tl t) |}.
 Next Obligation. firstorder. Qed.
 
-(** associated relation *)
+(** associated relation (bisimularity) *)
 Infix "~" := (gfp b) (at level 70).
 
 (** notations  for easing readability in proofs by enhanced coinduction *)
@@ -25,8 +26,8 @@ Infix "{~}" := (b `_) (at level 70).
 Instance Equivalence_t {R: Chain b}: Equivalence `R.
 Proof.
   constructor; revert R.
-  - apply Reflexive_chain. intros R HR x. now split.
-  - apply Symmetric_chain. intros R HR x y []. now split; symmetry.
+  - apply Reflexive_chain. intros R HR x. by split.
+  - apply Symmetric_chain. intros R HR x y []. by split; symmetry.
   - apply Transitive_chain. intros R HR x y z [] []. split. congruence. etransitivity; eauto. 
 Qed.
 
@@ -36,10 +37,8 @@ Proof. intros x y H. apply (gfp_pfp b), H. Qed.
 Instance tl_bisim: Proper (gfp b ==> gfp b) tl.
 Proof. intros x y H. apply (gfp_pfp b), H. Qed.
 
+(** * streams form the final coalgebra of the functor [nat × X] *)
 
-Module CATS.
-  
-Canonical nat_setoid := setoids.eq_setoid nat. 
 Canonical stream_setoid := Setoid.build stream (gfp b) Equivalence_t.
 
 Program Definition stream_coalg: COALGEBRA (ex_setoids.F_times nat) :=
@@ -77,8 +76,6 @@ Proof.
     -- by rewrite fx1 gx1. 
     -- by rewrite fx2 gx2. 
 Qed.
-    
-End CATS.
 
 
 
@@ -111,19 +108,31 @@ Proof.
 Qed.
 
 (** addition corresponds to a compatible function and preserves the final chain *)
-#[export] Instance plus_chain: forall {R: Chain b}, Proper (`R ==> `R ==> `R) plus.
+Instance plus_chain: forall {R: Chain b}, Proper (`R ==> `R ==> `R) plus.
 Proof.
   apply (Proper_chain 2). 
   intros R HR x y [xy0 xy'] u v [uv0 uv'].
   split; cbn.
-   congruence.
-   now apply HR. 
+  - congruence.
+  - by apply HR. 
 Qed.
 
 
 (** * shuffle product *)
-(** shuffle product cannot be defined as easily as one could expect in Coq, 
-    because of the guard condition. Here we simply assume its existence for the sake of simplicity *)
+
+(** this is the following binary operation on streams [s,t]:
+    [(s@t)_k = Σ_{i+j=k} (i k) s_i t_j]
+    it can be characterised by the following equations:
+    [hd (s@t) = hd s * hd t]
+    [tl (s@t) = tl s @ t  +  s @ tl t]
+ *)
+
+(** It be defined as easily as one could expect in Coq, 
+    because of the guard condition: *)
+Fail CoFixpoint shuff s t :=
+  cons (hd s * hd t)%nat (shuff (tl s) t + shuff s (tl t)).
+
+(** Here we simply assume its existence for the sake of simplicity. *)
 Parameter shuf: stream -> stream -> stream.
 Infix "@" := shuf (at level 40, left associativity).
 Axiom hd_shuf: forall s t, hd (s @ t) = (hd s * hd t)%nat.
@@ -133,32 +142,32 @@ Ltac ssimpl := repeat (rewrite ?hd_shuf ?tl_shuf; simpl hd; simpl tl).
 Lemma shuf_0x: forall x, c 0 @ x ~ c 0.
 Proof.
   coinduction R HR. intros x. split; ssimpl.
-   nia.
-   rewrite HR. rewrite plus_0x. apply HR. 
+  - nia.
+  - rewrite HR. rewrite plus_0x. apply HR. 
 Qed.
 
 Lemma shuf_1x: forall x, c 1 @ x ~ x.
 Proof.
   coinduction R HR. intros x. split; ssimpl.
-   lia.
-   rewrite shuf_0x plus_0x. apply HR.
+  - lia.
+  - rewrite shuf_0x plus_0x. apply HR.
 Qed.
 
 Lemma shufC: forall x y, x @ y ~ y @ x.
 Proof.
   coinduction R HR. intros x y. split; ssimpl.
-   nia.
-   now rewrite HR plusC HR. 
+  - nia.
+  - by rewrite HR plusC HR. 
 Qed.
 
 Lemma shuf_x_plus: forall x y z, x @ (y + z) ~ x@y + x@z.
 Proof.
   coinduction R HR. intros x y z. split; ssimpl.
-   nia. 
-   rewrite 2!HR. rewrite 2!plusA. 
-   apply plus_chain. 2: reflexivity.
-   rewrite <-2plusA. 
-   apply plus_chain. reflexivity. now rewrite plusC.
+  - nia. 
+  - rewrite 2!HR. rewrite 2!plusA. 
+    apply plus_chain. 2: reflexivity.
+    rewrite <-2plusA. 
+    apply plus_chain. reflexivity. by rewrite plusC.
 Qed.
 
 Lemma shuf_plus_x: forall x y z, (y + z)@x ~ y@x + z@x.
@@ -170,26 +179,43 @@ Qed.
 Lemma shufA: forall x y z, x @ (y @ z) ~ (x @ y) @ z.
 Proof.
   coinduction R HR. intros x y z. split; ssimpl.
-   nia.
-   rewrite shuf_x_plus shuf_plus_x. rewrite 3!HR.
-   now rewrite plusA. 
+  - nia.
+  - rewrite shuf_x_plus shuf_plus_x. rewrite 3!HR.
+    by rewrite plusA. 
 Qed.
 
 (** shuffle product preserves the final chain *)
-#[export] Instance shuf_chain: forall {R: Chain b}, Proper (`R ==> `R ==> `R) shuf.
+Instance shuf_chain: forall {R: Chain b}, Proper (`R ==> `R ==> `R) shuf.
 Proof.
   apply (Proper_chain 2). 
   intros R HR x y xy u v uv. 
   pose proof xy as [xy0 xy'].
   pose proof uv as [uv0 uv'].
-  split; ssimpl. congruence.
-  now rewrite xy' uv' xy uv.
+  split; ssimpl.
+  - congruence.
+  - by rewrite xy' uv' xy uv.
 Qed.
 
 
 (** * convolution product *)
-(** like shuffle product, convolution product cannot be defined as easily as one could expect in Coq.
-    Here we simply assume its existence for the sake of simplicity *)
+(** this is the following binary operation on streams [s,t]:
+    [(s*t)_k = Σ_{i+j=k} s_i t_j]
+    (note that the binomial coefficient has disappeared)
+
+    it can be characterised by the following equations:
+    [hd (s*t) = hd s * hd t]
+    [tl (s*t) = tl s * t + hd s ** tl t]
+    There [**] is pointwise multiplication by a scalar, which is a special case of convolution product:
+    [x ** s = c x * s]
+    (Remember that [c x] is the stream [x,0,0,...] )
+ *)
+
+(** Like before, we cannot define it as one could expect in Coq, 
+    because of the guard condition: *)
+Fail CoFixpoint mult s t :=
+  cons (hd s * hd t)%nat (mult (tl s) t + mult (c (hd s)) (tl t)).
+
+(** Here we simply assume its existence for the sake of simplicity. *)
 Parameter mult: stream -> stream -> stream.
 Infix "*" := mult.
 Axiom hd_mult: forall s t, hd (s * t) = (hd s * hd t)%nat.
@@ -199,53 +225,53 @@ Ltac msimpl := repeat (rewrite ?hd_mult ?tl_mult; simpl hd; simpl tl).
 Lemma mult_0x: forall x, c 0 * x ~ c 0.
 Proof.
   coinduction R HR. intros x. split; msimpl.
-   nia.
-   rewrite HR. rewrite plus_0x. apply HR. 
+  - nia.
+  - rewrite HR. rewrite plus_0x. apply HR. 
 Qed.
 
 Lemma mult_x0: forall x, x  * c 0 ~ c 0.
 Proof.
   coinduction R HR. intros x. split; msimpl.
-   nia.
-   rewrite HR. rewrite plus_0x. apply HR. 
+  - nia.
+  - rewrite HR. rewrite plus_0x. apply HR. 
 Qed.
 
 Lemma mult_1x: forall x, c 1 * x ~ x.
 Proof.
   coinduction R HR. intros x. split; msimpl.
-   lia.
-   rewrite mult_0x plus_0x. apply HR.
+  - lia.
+  - rewrite mult_0x plus_0x. apply HR.
 Qed.
 
 Lemma mult_x1: forall x, x * c 1 ~ x.
 Proof.
   coinduction R HR. intros x. split; msimpl.
-   lia.
-   rewrite mult_x0 plusC plus_0x. apply HR.
+  - lia.
+  - rewrite mult_x0 plusC plus_0x. apply HR.
 Qed.
 
 Lemma mult_x_plus: forall x y z, x * (y + z) ~ x*y + x*z.
 Proof.
   coinduction R HR. intros x y z. split; msimpl.
-   nia. 
-   rewrite 2!HR. rewrite 2!plusA. 
-   apply plus_chain. 2: reflexivity.
-   rewrite <-2plusA. 
-   apply plus_chain. reflexivity. now rewrite plusC.
+  - nia. 
+  - rewrite 2!HR. rewrite 2!plusA. 
+    apply plus_chain. 2: reflexivity.
+    rewrite <-2plusA. 
+    apply plus_chain. reflexivity. by rewrite plusC.
 Qed.
 
 Lemma c_plus n m: c (n+m) ~ c n + c m.
 Proof.
   coinduction R HR. clear HR. split; simpl.
-   reflexivity.
-   now rewrite plus_0x.
+  - reflexivity.
+  - by rewrite plus_0x.
 Qed.
 
 Lemma c_mult n m: c (n*m) ~ c n * c m.
 Proof.
   coinduction R HR. clear HR. split; msimpl.
-   reflexivity.
-   now rewrite mult_0x mult_x0 plus_0x.
+  - reflexivity.
+  - by rewrite mult_0x mult_x0 plus_0x.
 Qed.
 
 (** convolution product preserves the final chain  *)
@@ -255,27 +281,28 @@ Proof.
   intros R HR x y xy u v uv. 
   pose proof xy as [xy0 xy'].
   pose proof uv as [uv0 uv'].
-  split; msimpl. congruence.
-  now rewrite xy' uv' xy0 uv.
+  split; msimpl.
+  - congruence.
+  - by rewrite xy' uv' xy0 uv.
 Qed.
 
 Lemma mult_plus_x: forall x y z, (y + z) * x ~ y*x + z*x.
 Proof.
   coinduction R HR. intros x y z. split; msimpl.
-   nia. 
-   rewrite c_plus 2!HR 2!plusA.
-   apply plus_chain. 2: reflexivity.
-   rewrite <-2plusA. 
-   apply plus_chain. reflexivity. now rewrite plusC.
+  - nia. 
+  - rewrite c_plus 2!HR 2!plusA.
+    apply plus_chain. 2: reflexivity.
+    rewrite <-2plusA. 
+    apply plus_chain. reflexivity. by rewrite plusC.
 Qed.
 
 Lemma multA: forall x y z, x * (y * z) ~ (x * y) * z.
 Proof.
   coinduction R HR. intros x y z. split; msimpl.
-   nia.
-   rewrite mult_x_plus. rewrite 3!HR.
-   rewrite plusA -mult_plus_x.
-   now rewrite c_mult.
+  - nia.
+  - rewrite mult_x_plus. rewrite 3!HR.
+    rewrite plusA -mult_plus_x.
+    by rewrite c_mult.
 Qed.
 
 (** below: commutativity of convolution product, following Rutten's
@@ -284,8 +311,8 @@ Qed.
 Lemma multC_n n: forall x, c n * x ~ x * c n.
 Proof.
   coinduction R HR. intro x. split; msimpl.
-   nia.
-   now rewrite mult_0x mult_x0 plusC HR.
+  - nia.
+  - by rewrite mult_0x mult_x0 plusC HR.
 Qed.
 
 Definition X := cons 0 (c 1).
@@ -293,35 +320,35 @@ Definition X := cons 0 (c 1).
 Theorem expand x: x ~ c (hd x) + X * tl x.
 Proof.
   coinduction R HR. clear HR. split; msimpl.
-   nia.
-   now rewrite mult_0x mult_1x plus_0x plusC plus_0x.
+  - nia.
+  - by rewrite mult_0x mult_1x plus_0x plusC plus_0x.
 Qed.
 
 Lemma multC_11 x: tl (X * x) ~ x.
 Proof.
   coinduction R HR. clear HR. split; msimpl.
-   nia.
-   now rewrite !mult_0x mult_1x 2!plus_0x plusC plus_0x.
+  - nia.
+  - by rewrite !mult_0x mult_1x 2!plus_0x plusC plus_0x.
 Qed.
 
 Lemma multC_X: forall x, X * x ~ x * X. 
 Proof.
   coinduction R HR. intro x. split; msimpl.      
-   nia. 
-   rewrite mult_0x mult_1x mult_x1.
-   rewrite plusC plus_0x.
-   rewrite plusC. now rewrite -HR -expand.
+  - nia. 
+  - rewrite mult_0x mult_1x mult_x1.
+    rewrite plusC plus_0x.
+    rewrite plusC. by rewrite -HR -expand.
 Qed.
 
 Lemma multC: forall x y, x * y ~ y * x.
 Proof.
   coinduction R HR. intros x y. split.
-   msimpl; nia.
-   rewrite {1}(expand x). rewrite mult_plus_x. simpl tl.
-   rewrite -multA multC_11.
-   rewrite (HR (tl x)).
-   rewrite multC_n. rewrite <-(multC_11 (y*tl x)).
-   rewrite multA multC_X.
-   rewrite {3}(expand x). rewrite mult_x_plus.
-   now rewrite multA. 
+  - msimpl; nia.
+  - rewrite {1}(expand x). rewrite mult_plus_x. simpl tl.
+    rewrite -multA multC_11.
+    rewrite (HR (tl x)).
+    rewrite multC_n. rewrite <-(multC_11 (y*tl x)).
+    rewrite multA multC_X.
+    rewrite {3}(expand x). rewrite mult_x_plus.
+    by rewrite multA. 
 Qed.
