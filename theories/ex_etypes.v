@@ -1,10 +1,9 @@
 From epit Require Import cats.
 
 (** * case-study in the category of types and *extenstional* functions *)
-Module ETYPES.
 
 (** category of types and extensional functions *)
-Program Canonical ETYPES: CATEGORY :=
+Program Canonical ETYPES: Category :=
   {|
     ob := Type;
     hom A B := dprod_setoid (fun _: A => eq_setoid B);
@@ -16,10 +15,10 @@ Next Obligation.
 Qed.
 
 (** ** endofunctors on ETYPES *)
-Notation FUNCTOR := (FUNCTOR ETYPES ETYPES).
+Notation Functor := (Functor ETYPES ETYPES).
 
 (** A×X *)
-Program Definition F_times A: FUNCTOR :=
+Program Definition F_times A: Functor :=
   {| app' X := A × X; app X Y f ax := (ax.1,f ax.2) |}.
 Next Obligation.
   move=>/=A B C f g E [a b]/=. by rewrite E.
@@ -29,28 +28,28 @@ Next Obligation.
 Qed.
 
 (** option *)
-Program Definition F_option: FUNCTOR :=
+Program Definition F_option: Functor :=
   {| app' := option; app := Option.map |}.
 Next Obligation. intros * f g fg [a|]=>//=. f_equal; apply (fg a). Qed.
 Next Obligation. by move=>?[]. Qed.
 Next Obligation. by move=>*[]. Qed.
 
 (** list *)
-Program Definition F_list: FUNCTOR :=
+Program Definition F_list: Functor :=
   {| app' := list; app := List.map |}.
 Next Obligation. move=>* f g /=fg. elim=> [|a q IH]=>//=. by f_equal. Qed.
 Next Obligation. intros. elim=>/=; congruence. Qed.
 Next Obligation. intros. elim=>/=; congruence. Qed.
 
 (** X^A *)
-Program Definition F_exp A: FUNCTOR :=
+Program Definition F_exp A: Functor :=
   {| app' X := (A -> X); app X Y f g := comp f g |}.
 Next Obligation.
   move=>/=* f g fg h. apply funext=>a. apply fg. (* still need [funext] *)
 Qed.
 
 (** powerset *)
-Program Definition F_pow: FUNCTOR :=
+Program Definition F_pow: Functor :=
   {| app' X := (X -> Prop); app X Y f S := fun y => exists x, S x /\ y = f x |}.
 Next Obligation.
   move=>/=* f g fg S. apply: funext=>b. apply: propext. (* still need [funext] and [propext] *)
@@ -71,16 +70,16 @@ Qed.
 
 Inductive nat := O | S(n: nat).
 
-Program Definition nat_alg: ALGEBRA F_option :=
+Program Definition nat_alg: Algebra F_option :=
   {| alg_car := nat;
-     alg_bod x := match x with Some x => S x | None => O end |}.
+     alg_mor x := match x with Some x => S x | None => O end |}.
 
 Lemma init_nat_alg: initial nat_alg.
 Proof.
   unshelve esplit.
   - intro f. unshelve eexists.
-    elim. exact (alg_bod f None).
-    intros _ x. exact (alg_bod f (Some x)).
+    elim. exact (alg_mor f None).
+    intros _ x. exact (alg_mor f (Some x)).
     by case.
   - simpl. intros X g.
     elim=>/=[|n IH]. apply (algE g None).
@@ -91,20 +90,19 @@ Qed.
 
 CoInductive conat := coO | coS(n: conat).
 
-Definition conat_coalg: COALGEBRA F_option :=
+Definition conat_coalg: Coalgebra F_option :=
   @coalg _ F_option conat (fun x => match x with coS n => Some n | coO => None end).
 
 Lemma final_conat_coalg: final conat_coalg.
 Proof.
   unshelve esplit.
   - intro f. unshelve eexists; cbn.
-    cofix CH. intro x. destruct (coalg_bod f x) as [c|].
+    cofix CH. intro x. destruct (coalg_mor f x) as [c|].
     apply coS, CH, c.
     apply coO.
-    intro x; simpl. by destruct (coalg_bod f x).
+    intro x; simpl. by destruct (coalg_mor f x).
   - intros X f g.
     cbn.
     intro x.                    (* does not help *)
 Abort.
 
-End ETYPES.

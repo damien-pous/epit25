@@ -14,6 +14,7 @@ From epit Require Export setoids.
   The module provides us with:
   - A structure of [Setoid]
   - Notations for its equivalence: [eqv], written [≡] ("\equiv")
+  - The notion of map between setoids: [X -eqv-> Y]
 *)
 
 (** * Part 1: Categories
@@ -35,7 +36,7 @@ From epit Require Export setoids.
     We package in the same structure both the data and the axioms.
 *)
 
-Structure CATEGORY :=
+Structure Category :=
   {
     ob :> Type;
     hom:> ob -> ob -> Setoid;
@@ -53,15 +54,16 @@ Arguments comp {_ _ _ _}.
 Notation "g ∘ f" := (comp g f).
 Infix "∘[ 𝐂 ] " := (@comp 𝐂 _ _ _) (at level 40, left associativity, only parsing).
 Notation "A ~> B" := (hom _ A B) (at level 99, B at level 200, format "A  ~>  B").
+Notation "A ~>[ 𝐂 ] B" := (hom 𝐂 A B) (at level 99, B at level 200, only parsing).
 
 (* We can already toy with the structure by defining a few categories.
-   Note that [Program] allows you to only fill in explicitely the data in teh definition of the structure.
+   Note that [Program] allows you to only fill in explicitely the data in the definition of the structure.
    It will try to solve the properties automatically, and will provide them to you as obligations to solve interactively otherwise.
  *)
 Section example_categories.
 
   (** The category with a single object, and a single morphism. *)
-  Program Definition UNIT: CATEGORY :=
+  Program Definition UNIT: Category :=
     {|
       ob             := unit;
       hom _ _        := unit;
@@ -72,7 +74,7 @@ Section example_categories.
   Next Obligation. by destruct f. Qed.
 
   (** Important for us: the category of types and functions *)
-  Program Definition TYPES: CATEGORY :=
+  Program Definition TYPES: Category :=
     {|
       ob := Type;
       hom A B := eq_setoid (A -> B);
@@ -83,7 +85,7 @@ Section example_categories.
 
   (* TODO: other examples. Example for the students to define *)
   (** TODO Exercise ? Define the category of relations of Types *)
-  Fail Program Definition REL: CATEGORY := {|  |}.
+  Fail Program Definition REL: Category := {|  |}.
     (* {|
       ob := Type;
       hom A B := A -> B -> Prop;
@@ -104,7 +106,7 @@ Section example_categories.
   Qed. *)
 
   (** dual category (SKIP??) *)
-  Program Definition dual (𝐂: CATEGORY): CATEGORY :=
+  Program Definition dual (𝐂: Category): Category :=
     {|
       ob := ob 𝐂;
       hom A B := 𝐂 B A;
@@ -129,14 +131,14 @@ End example_categories.
 
 (** * epi/monos (SKIP??) *)
 Section epimono.
-  Context {𝐂: CATEGORY}.
+  Context {𝐂: Category}.
   Definition epi {A B: 𝐂} (f: A ~> B) := forall C (g h: B ~> C), g ∘ f ≡ h ∘ f -> g ≡ h.
   Definition mono {A B: 𝐂} (f: A ~> B) := forall C (g h: C ~> A), f ∘ g ≡ f ∘ h -> g ≡ h.
 End epimono.
 
 (** * isomorphisms *)
 Section iso.
-  Context {𝐂: CATEGORY}.
+  Context {𝐂: Category}.
   Record iso (A B: 𝐂) :=
     { fwd: A ~> B;
       bwd: B ~> A;
@@ -180,40 +182,44 @@ Infix "≃" := iso (at level 70).
 
 Section universal.
 
-  Context {𝐂: CATEGORY}.
+  Context {𝐂: Category}.
 
+  (** an object [I] is initial if for every other object [X],
+      there exists a unique morphism [I~>X]  *)
   Record initial (I: 𝐂) := {
       init_mor:> forall X, I ~> X;
-      init_unq': forall X (f: I ~> X), f ≡ init_mor X;
+      init_mor_unique: forall X (f: I ~> X), f ≡ init_mor X;
     }.
-  Lemma init_unq I (i: initial I) X (f g: I ~> X): f ≡ g.
-  Proof. by rewrite (init_unq' i _ f) (init_unq' i _ g). Qed.
+  (** in particular, any two parallel morphisms out of [I] must be equal *)
+  Lemma init_unique I (i: initial I) X (f g: I ~> X): f ≡ g.
+  Proof.
+    by rewrite (init_mor_unique i _ f) (init_mor_unique i _ g).
+  Qed.
           
-  Lemma initial_unique I I': initial I -> initial I' -> I ≃ I'.
+  (** initial objects are all isomorphic *)
+  Lemma initial_iso I I': initial I -> initial I' -> I ≃ I'.
   Proof.
     intros i i'.
     exists (i _) (i' _).
-    apply (init_unq i'). 
-    apply (init_unq i).
+    apply (init_unique i'). 
+    apply (init_unique i).
   Qed.
 
+  (** dually, an object [Z] is final if for every other object [X],
+      there exists a unique morphism [X~>Z]
+      Given what we do in the sequel, we found it more convenient to directly ask for [fin_unique] in the definition.
+   *)
   Record final (Z: 𝐂) := {
       fin_mor:> forall X, X ~> Z;
-      fin_unq: forall X (f g: X ~> Z), f ≡ g;
-      (* fin_unq': forall X (f: X ~> Z), f ≡ fin_mor X; *)
+      fin_unique: forall X (f g: X ~> Z), f ≡ g;
     }.
-  (* Lemma fin_unq Z (z: final Z) X (f g: X ~> Z): f ≡ g. *)
-  (* Proof. by rewrite (fin_unq' z _ f) (fin_unq' z _ g). Qed. *)
-  Program Definition Build_final' Z (f: forall X, X ~> Z) (Hf: forall X (g: X ~> Z), g ≡ f X): final Z :=
-    {| fin_mor := f |}.
-  Next Obligation. intros; transitivity (f X); [|symmetry]; apply Hf. Qed.
   
   Lemma final_unique Z Z': final Z -> final Z' -> Z ≃ Z'.
   Proof.
     intros f f'.
     exists (f' _) (f _).
-    apply (fin_unq f'). 
-    apply (fin_unq f).
+    apply (fin_unique f'). 
+    apply (fin_unique f).
   Qed.
 
 End universal.
@@ -221,19 +227,19 @@ End universal.
 Section example_initial_final.
 
   (* Exercise (?) Define the initial and final objects in TYPES *)
-
-  (* Definition initial_types : @initial TYPES False.
-  unshelve eapply Build_initial'.
+  (*
+  Definition initial_types : @initial TYPES False.
+  unshelve esplit. 
   refine (fun _ abs => match abs : False with end).
   intros.
   apply funext; intros [].
   Qed.
 
   Definition final_types : @final TYPES unit.
-  unshelve eapply Build_final'.
+  unshelve esplit.
   refine (fun _ _ => tt).
   intros.
-  apply funext; intros a; destruct (g a); reflexivity.
+  apply funext; intros a; destruct (f a); destruct (g a); reflexivity.
   Qed. *)
 
 End example_initial_final.
@@ -242,7 +248,7 @@ End example_initial_final.
 
 (** * 4. Functors *)
 
-Record FUNCTOR (𝐂 𝐃: CATEGORY) :=
+Record Functor (𝐂 𝐃: Category) :=
   {
     app':> 𝐂 -> 𝐃;
     app: forall {A B}, 𝐂 A B -> 𝐃 (app' A) (app' B);
@@ -253,7 +259,7 @@ Record FUNCTOR (𝐂 𝐃: CATEGORY) :=
   }.
 
 (* The identity functor *)
-Program Definition functor_id {𝐂}: FUNCTOR 𝐂 𝐂 :=
+Program Definition functor_id {𝐂}: Functor 𝐂 𝐂 :=
   {|
     app' A := A;
     app _ _ f := f;
@@ -263,7 +269,7 @@ Next Obligation.
 Qed.
 
 (* Composition of functors *)
-Program Definition functor_comp {𝐂 𝐃 𝐄} (G: FUNCTOR 𝐃 𝐄) (F: FUNCTOR 𝐂 𝐃): FUNCTOR 𝐂 𝐄 :=
+Program Definition functor_comp {𝐂 𝐃 𝐄} (G: Functor 𝐃 𝐄) (F: Functor 𝐂 𝐃): Functor 𝐂 𝐄 :=
   {|
     app' A := G (F A);
     app _ _ f := app G (app F f);
@@ -275,12 +281,12 @@ Next Obligation. cbn; intros. by rewrite 2!app_id. Qed.
 Next Obligation. cbn; intros. by rewrite 2!app_comp. Qed.
 
 (* Constant functor *)
-Program Definition functor_constant {𝐂 𝐃: CATEGORY} (A: 𝐃): FUNCTOR 𝐂 𝐃:=
+Program Definition functor_constant {𝐂 𝐃: Category} (A: 𝐃): Functor 𝐂 𝐃:=
   {| app' _ := A; app _ _ _ := id |}.
 Next Obligation. by cbn; intros. Qed.
 Next Obligation. cbn; intros. by rewrite idl. Qed.
 
-Definition app_iso {𝐂 𝐃} (F: FUNCTOR 𝐂 𝐃) A B: A ≃ B -> F A ≃ F B.
+Definition app_iso {𝐂 𝐃} (F: Functor 𝐂 𝐃) A B: A ≃ B -> F A ≃ F B.
 Proof.
   intro i. exists (app F (i^1)) (app F (i^-1)).
   by rewrite -app_comp isoE app_id.
@@ -292,161 +298,185 @@ Qed.
 (** * 5. Algebras *)
 
 Section algebra.
-  Context {𝐂: CATEGORY}.
-  Section s.
-  
-  (* We fix in the whole section a functor [F]. *)
-  Variable F: FUNCTOR 𝐂 𝐂.
 
-  Record ALGEBRA := alg
+  (** We fix in this section a category [𝐂] with an endofunctor [F] *)
+  Context {𝐂: Category}.
+  Variable F: Functor 𝐂 𝐂.
+
+  (** F-algebras: an object and a morphism *)
+  Record Algebra := alg
     {
       alg_car:> 𝐂;
-      alg_bod:> F alg_car ~> alg_car
+      alg_mor:> F alg_car ~> alg_car
     }.
 
-  Record alg_hom (A B: ALGEBRA) :=
+  (** F-algebra homomorphisms: morphisms making the obvious square commute *)
+  Record alg_hom (A B: Algebra) :=
     {
-      alg_hom_:> A ~> B;
-
-      algE: alg_hom_ ∘ A ≡ B ∘ app F alg_hom_
+      alg_bod:> A ~> B;
+      algE: alg_bod ∘ A ≡ B ∘ app F alg_bod
     }.
-  Arguments alg_hom_ {_ _}.
+  Arguments alg_bod {_ _}.
 
-  Program Definition alg_id (A: ALGEBRA): alg_hom A A := {| alg_hom_ := id |}.
+  Program Definition alg_id (A: Algebra): alg_hom A A :=
+    {| alg_bod := id |}.
   Next Obligation.
     intro. by rewrite app_id idl idr.
   Qed.
 
-  Program Definition alg_comp (A B C: ALGEBRA)
+  Program Definition alg_comp (A B C: Algebra)
     (g: alg_hom B C) (f: alg_hom A B): alg_hom A C :=
-    {| alg_hom_ := g ∘ f |}.
+    {| alg_bod := g ∘ f |}.
   Next Obligation.
     intros. by rewrite compA algE -compA algE app_comp compA.
   Qed.
 
-  Canonical alg_hom_setoid (A B: ALGEBRA) :=
-    kern_setoid _ (@alg_hom_ A B).
+  (** We compare algebra homomorphisms via their underlying morphisms *)
+  Canonical alg_hom_setoid (A B: Algebra) :=
+    kern_setoid _ (@alg_bod A B).
 
-  (* F-algebras form a category *)
-  Program Canonical Structure ALGEBRAS: CATEGORY :=
-    {| ob := ALGEBRA ; id := @alg_id ; comp := @alg_comp |}.
+  (** F-algebras form a category *)
+  Program Canonical Structure ALGEBRAS: Category :=
+    {| ob := Algebra ; id := @alg_id ; comp := @alg_comp |}.
   Next Obligation. intros * f f' H g g' G. by apply comp_eqv. Qed.
   Next Obligation. intros. apply idl. Qed.
   Next Obligation. intros. apply idr. Qed.
   Next Obligation. intros. apply compA. Qed.
 
   Section initial_algebra.
-    Context {I: ALGEBRA} (H: initial I).
-    Section l.
+    Context {I: Algebra} (H: initial I).    
 
-    (* Lambek's lemma: initial F-algebras are fixpoints for F. *)
-    Let i := alg_bod I.
-    Let FI := {| alg_car := F I; alg_bod := app F i |}.
-    Let j := H FI.
+    (** ** Lambek's lemma: initial F-algebras are fixpoints for F,
+        i.e., their underlying morphism actually is an isomorphism *)
+
+    (** shorthand for this morphism *)      
+    Let i: 𝐂 (F I) I := I.
+
+    (** we construct an algebra structure on [F I] *)
+    Let FI := alg (F I) (app F i).
+
+    (** by initiality, this yields the backward morphism *)
+    Let j: 𝐂 I (F I) := H FI.
+
+    (** it remains to prove that they are inverse of each other *)
     Lemma Lambek1: i ∘ j ≡ id.
     Proof. 
       set i' := Build_alg_hom FI I i (eqv_refl _).
-      apply (init_unq H I (i' ∘ H FI) (alg_id _)).
+      apply (init_unique H I (i' ∘ H FI) (alg_id _)).
     Qed.
-    
-    Program Definition Lambek: F I ≃ I :=
-      {| fwd :=i; bwd := j; isoE := Lambek1|}. 
-    Next Obligation.
-      intros.      
+    Lemma Lambek2: j ∘ i ≡ id.
+    Proof.
       by rewrite (algE j) /= -app_comp Lambek1 app_id.
     Qed.
-    End l.
 
-    (* SKIP?? *)
-    Definition rec (X: ALGEBRA): 𝐂 I X := H X.
+    (** packing everything together *)
+    Definition Lambek: F I ≃ I :=
+      {| fwd := i;
+         bwd := j;
+         isoE := Lambek1;
+         isoE' := Lambek2 |}. 
+
+    (** unfolding the definition of initiality for algebras, we actually get a recursion scheme *)
+    Definition rec (X: Algebra): 𝐂 I X := H X.    
     Lemma recE X: rec X ∘ I ≡ X ∘ app F (rec X).
     Proof. apply algE. Qed.
-    Lemma rec_comp (X Y: ALGEBRA) (f: X ~> Y): f ∘[𝐂] rec X ≡ rec Y.
-    Proof. apply (init_unq H _ (f ∘ H X) (H Y)). Qed.
+    
+    Lemma rec_comp (X Y: Algebra) (f: X ~> Y): f ∘[𝐂] rec X ≡ rec Y.
+    Proof. apply (init_unique H _ (f ∘ H X) (H Y)). Qed.
+    
     Corollary rec_eqv (X: 𝐂) (f g: F X ~> X): f ≡ g -> rec (alg X f) ≡ rec (alg X g).
     Proof.
       intro fg.
-      unshelve eset (i := _: alg X f ~> alg X g).
+      unshelve eset (h := _: alg X f ~> alg X g).
       exists (id: X ~> X)=>/=. abstract (by rewrite idr app_id idl).
-      by rewrite -(rec_comp i) idr.
+      by rewrite -(rec_comp h) idr.
     Qed.
   End initial_algebra.
-  End s.
 
 End algebra.
 Arguments alg {_ _ _}.
 
 
-(** * dually, coalgebras *)
+(** * 6. Dually, coalgebras *)
 Section coalgebra.
-  Context {𝐂: CATEGORY}.
-  Section s.
-  Variable F: FUNCTOR 𝐂 𝐂.
-  Record COALGEBRA := coalg
+
+  (** We fix in this section a category [𝐂] with an endofunctor [F]. *)
+  Context {𝐂: Category}.
+  Variable F: Functor 𝐂 𝐂.
+
+  (** F-coalgebras: an object and a morphism *)
+  Record Coalgebra := coalg
     {
       coalg_car:> 𝐂;
-      coalg_bod:> coalg_car ~> F coalg_car
+      coalg_mor:> coalg_car ~> F coalg_car
     }.
 
-  Record coalg_hom (A B: COALGEBRA) :=
+  (** F-coalgebra homomorphisms: morphisms making the obvious square commute *)
+  Record coalg_hom (A B: Coalgebra) :=
     {
-      coalg_hom_:> A ~> B;
-      coalgE: B ∘ coalg_hom_ ≡ app F coalg_hom_ ∘ A
+      coalg_bod:> A ~> B;
+      coalgE: B ∘ coalg_bod ≡ app F coalg_bod ∘ A
     }.
-  Arguments coalg_hom_ {_ _}.
+  Arguments coalg_bod {_ _}.
 
-  Program Definition coalg_id (A: COALGEBRA): coalg_hom A A := {| coalg_hom_ := id |}.
+  Program Definition coalg_id (A: Coalgebra): coalg_hom A A :=
+    {| coalg_bod := id |}.
   Next Obligation.
     intros. by rewrite app_id idl idr.
   Qed.
 
-  Program Definition coalg_comp (A B C: COALGEBRA)
+  Program Definition coalg_comp (A B C: Coalgebra)
     (g: coalg_hom B C) (f: coalg_hom A B): coalg_hom A C :=
-    {| coalg_hom_ := g ∘ f |}.
+    {| coalg_bod := g ∘ f |}.
   Next Obligation.
     intros. by rewrite -compA coalgE compA coalgE app_comp compA.
   Qed.
 
-  Canonical coalg_hom_setoid (A B: COALGEBRA) :=
-    kern_setoid _ (@coalg_hom_ A B).
+  (** We compare coalgebra homomorphisms via their underlying morphisms *)
+  Canonical coalg_hom_setoid (A B: Coalgebra) :=
+    kern_setoid _ (@coalg_bod A B).
 
-  Program Canonical Structure COALGEBRAS: CATEGORY :=
-    {| ob := COALGEBRA ; id := @coalg_id ; comp := @coalg_comp |}.
+  (** F-coalgebras form a category *)
+  Program Canonical Structure COALGEBRAS: Category :=
+    {| ob := Coalgebra ; id := @coalg_id ; comp := @coalg_comp |}.
   Next Obligation. intros* f f' H g g' G. by apply comp_eqv. Qed.
   Next Obligation. intros. apply idl. Qed.
   Next Obligation. intros. apply idr. Qed.
   Next Obligation. intros. apply compA. Qed.
 
-  Section final_coalgebra.
-    Context {Z: COALGEBRA} (H: final Z).
-    Definition CoLambek: F Z ≃ Z.
+  Section final_coalgebra.      
+    Context {Z: Coalgebra} (H: final Z).
+    
+    (** ** CoLambek's lemma: final F-coalgebras are fixpoints for F,
+        i.e., their underlying morphism actually is an isomorphism *)
+
+    (** shorthand for this morphism *)      
+    Let z: 𝐂 Z (F Z) := Z.
+
+    (** we construct a coalgebra structure on [F Z] *)
+    Let FZ := coalg (F Z) (app F z). 
+
+    (** by finality, this yields the backward morphism *)
+    Let y: 𝐂 (F Z) Z := H FZ.
+
+    (** it remains to prove that they are inverse of each other *)
+    Lemma CoLambek1: y ∘ z ≡ id.
+    Proof. 
+      set z' := Build_coalg_hom Z FZ z (eqv_refl _).
+      apply (fin_unique H _ (H FZ ∘ z') (coalg_id _)).
+    Qed.
+    Lemma CoLambek2: z ∘ y ≡ id.
     Proof.
-      set z := coalg_bod Z.
-      set FZ := {| coalg_car := F Z; coalg_bod := app F z |}.
-      set y := H FZ.
-      have yz: (y: 𝐂 _ _) ∘ z ≡ id. {
-        set z' := Build_coalg_hom Z FZ z (eqv_refl _).
-        apply (fin_unq H _ (H FZ ∘ z') (coalg_id _)).
-      }
-      exists (y: 𝐂 _ _) z; trivial.
-      by rewrite (coalgE y) /= -app_comp yz app_id.
+      by rewrite (coalgE y) /= -app_comp CoLambek1 app_id.
     Qed.
 
-    (* SKIP?? *)
-    Definition corec (X: COALGEBRA): 𝐂 X Z := H X.
-    Lemma corecE X: Z ∘ corec X  ≡ app F (corec X) ∘ X.
-    Proof. apply coalgE. Qed.
-    Lemma corec_comp (X Y: COALGEBRA) (f: X ~> Y): corec Y ∘ f ≡ corec X.
-    Proof. apply (fin_unq H _ (H Y ∘ f) (H X)). Qed.
-    Corollary corec_eqv (X: 𝐂) (f g: X ~> F X): f ≡ g -> corec (coalg X f) ≡ corec (coalg X g).
-    Proof.
-      intro fg.
-      unshelve eset (i := _: coalg X f ~> coalg X g).
-      exists (id: X ~> X)=>/=. abstract (by rewrite idl app_id idr).
-      by rewrite -(corec_comp i) idl.
-    Qed.
+    (** packing everything together *)
+    Definition CoLambek: F Z ≃ Z :=
+      {| fwd := y;
+         bwd := z;
+         isoE := CoLambek1;
+         isoE' := CoLambek2 |}. 
   End final_coalgebra.
-  End s.
 
 End coalgebra.
 Arguments coalg {_ _ _}.

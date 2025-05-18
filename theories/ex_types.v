@@ -13,37 +13,37 @@ From epit Require Import cats.
 Canonical TYPES.
 
 (** ** Endofunctors on TYPES *)
-Notation FUNCTOR := (FUNCTOR TYPES TYPES).
+Notation Functor := (Functor TYPES TYPES).
 
 
 
 (** * 1. Examples of functors *)
 
 (** A×X *)
-Program Definition F_times A: FUNCTOR :=
+Program Definition F_times A: Functor :=
   {| app' X := A × X; app X Y f ax := (ax.1,f ax.2) |}.
 Next Obligation.
   intros. by apply funext=>[[]].
 Qed.
 
 (** option *)
-Program Canonical F_option: FUNCTOR :=
+Program Canonical F_option: Functor :=
   {| app' := option; app := Option.map |}.
 Next Obligation. intros. by apply funext=>[[|]]. Qed.
 Next Obligation. intros. by apply funext=>[[|]]. Qed.
 
 (** list *)
-Program Definition F_list: FUNCTOR :=
+Program Definition F_list: Functor :=
   {| app' := list; app := List.map |}.
 Next Obligation. intros. apply funext; elim=>/=; congruence. Qed.
 Next Obligation. intros. apply funext; elim=>/=; congruence. Qed.
 
 (** X^A *)
-Program Definition F_exp A: FUNCTOR :=
+Program Definition F_exp A: Functor :=
   {| app' X := A -> X; app X Y f g := comp f g |}.
 
 (** powerset *)
-Program Definition F_pow: FUNCTOR :=
+Program Definition F_pow: Functor :=
   {| app' X := (X -> Prop); app X Y f S := fun y => exists x, S x /\ y = f x |}.
 Next Obligation.
   cbn; intros. apply funext=>S;  apply funext=>y.
@@ -69,9 +69,9 @@ Definition nat_pack (n: option nat): nat :=
   match n with Some n => S n | None => O end.
 
 (* The pair (O, S) defines an option-algebra  *)
-Program Definition nat_alg: ALGEBRA F_option :=
+Program Definition nat_alg: Algebra F_option :=
   {| alg_car := nat;
-     alg_bod := nat_pack |}.
+     alg_mor := nat_pack |}.
 
 (* Remains to prove its initiality. *)
 Fixpoint nat_iter {X} (f: option X -> X) (n: nat) :=
@@ -83,7 +83,7 @@ Fixpoint nat_iter {X} (f: option X -> X) (n: nat) :=
 Lemma init_nat_alg: initial nat_alg.
 Proof.
   unshelve eexists. 
-  - intro f. exists (nat_iter (alg_bod f)). 
+  - intro f. exists (nat_iter (alg_mor f)). 
     by apply funext; case. 
   - intros X g. apply funext. simpl. intro n. 
     induction n as [|n IH]; simpl.
@@ -97,7 +97,7 @@ End initial_option.
   With this knowledge, we can work over an abstract view of [nat].
 *)
 Module abstract_nat.
-  Parameter A: ALGEBRA F_option.
+  Parameter A: Algebra F_option.
   Parameter I: initial A.
   (* We define [nat] as the carrier of the initial algebra *)
   Definition nat := alg_car A.
@@ -112,7 +112,7 @@ Module abstract_nat.
   Definition S: nat -> nat := @comp TYPES _ _ _ c Some.
 
   (* And a recursion principle *)
-  Definition pack    {X : Type} (x : X) (s: X -> X) : ALGEBRA F_option := @alg _ F_option X (fun ox => match ox with | None => x | Some y => s y end).
+  Definition pack    {X : Type} (x : X) (s: X -> X) : Algebra F_option := @alg _ F_option X (fun ox => match ox with | None => x | Some y => s y end).
   Definition nat_rec {X : Type} (x : X) (s: X -> X) := rec I (pack x s).
   
   Lemma nat_recO {X : Type} (x : X) (s: X -> X) : nat_rec x s O = x.
@@ -141,9 +141,9 @@ Section initial_times.
 
 Variant empty := .
 
-Program Definition empty_alg A: ALGEBRA (F_times A) :=
+Program Definition empty_alg A: Algebra (F_times A) :=
   {| alg_car := empty;
-     alg_bod x := match x.2 with end |}.
+     alg_mor x := match x.2 with end |}.
 
 Lemma init_empty_alg A: initial (empty_alg A).
 Proof.
@@ -158,7 +158,7 @@ End initial_times.
 (* Exercise? *)
 Section initial_otimes.
   (** option (A×X) *)
-Definition F_otimes (A : Type): FUNCTOR.
+Definition F_otimes (A : Type): Functor.
 unshelve econstructor.
 exact (fun X => option (A × X)).
 exact (fun X Y f => Option.map (fun ax => (ax.1,f ax.2))).
@@ -170,7 +170,7 @@ Defined.
 (* Why do I get a weird error with [Program] ? *)
 (* because strangely, Program Definition does not propagate the type annotation early enough  *)
 (* 
-Program Definition F_otimes' A : FUNCTOR :=
+Program Definition F_otimes' A : Functor :=
   {| app' X := option (A × X); 
      app X Y f := Option.map (fun ax => (ax.1,f ax.2)) |}.
 Next Obligation.
@@ -182,9 +182,9 @@ Next Obligation.
 Fail Qed. *)
 
 (* The pair (nil, cons) defines a list-algebra  *)
-Program Definition list_alg A: ALGEBRA (F_otimes A) :=
+Program Definition list_alg A: Algebra (F_otimes A) :=
   {| alg_car := list A;
-     alg_bod := fun x => match x with | None => nil | Some (a,x) => a :: x end |}.
+     alg_mor := fun x => match x with | None => nil | Some (a,x) => a :: x end |}.
 
 (* Remains to prove its initiality. *)
 Fixpoint list_iter {A X} (f: option (A × X) -> X) (l: list A) :=
@@ -196,7 +196,7 @@ Fixpoint list_iter {A X} (f: option (A × X) -> X) (l: list A) :=
 Lemma init_list_alg A: initial (list_alg A).
 Proof.
   unshelve eexists. 
-  - intro f. exists (list_iter (alg_bod f)). 
+  - intro f. exists (list_iter (alg_mor f)). 
     apply funext. by case; [case |].
   - intros X g. apply funext. simpl. intros l.
     induction l as [|a l IH]; simpl.
@@ -225,7 +225,7 @@ Section containers.
   (* Containers represent functors: intuitively, each element of [A] is a different shape,
      and given a shape [a], then the position [B a] indicates how it should be filled with data.
    *)
-  Program Definition apply (cont : container) : FUNCTOR :=
+  Program Definition apply (cont : container) : Functor :=
     {| app' X := { a : A cont & B cont a -> X};
        app X Y f := fun x => existT _ (projT1 x) (f ∘ (projT2 x))
     |}.
@@ -255,9 +255,9 @@ Section containers.
   Inductive W_sort : Type :=
   | sup0 (a : cA) (f : cB a -> W_sort) : W_sort.
 
-  Program Definition w_alg : ALGEBRA (apply cont) :=
+  Program Definition w_alg : Algebra (apply cont) :=
     {| alg_car := W_sort;
-       alg_bod x := (sup0 (projT1 x) (projT2 x)) |}.
+       alg_mor x := (sup0 (projT1 x) (projT2 x)) |}.
 
   (* And indeed, [w_alg] is initial *)
   Lemma init_w_alg : initial w_alg.
@@ -298,9 +298,9 @@ CoInductive conat := coO | coS(n: conat).
 Definition conat_pack (n: conat): option conat :=
   match n with coS n => Some n | coO => None end.
 
-Definition conat_coalg: COALGEBRA F_option :=
+Definition conat_coalg: Coalgebra F_option :=
   {| coalg_car := conat: ob TYPES;
-     coalg_bod := conat_pack |}.
+     coalg_mor := conat_pack |}.
 
 CoFixpoint conat_coiter {X} (f: X -> option X) (x: X): conat :=
   match f x with
@@ -311,10 +311,10 @@ CoFixpoint conat_coiter {X} (f: X -> option X) (x: X): conat :=
 Lemma final_conat_coalg: final conat_coalg.
 Proof.
   unshelve eexists.
-  - intro f. exists (conat_coiter (coalg_bod f)).
+  - intro f. exists (conat_coiter (coalg_mor f)).
     apply funext=>x. simpl.
     (* anomaly with Coq 8.17.1 ... *)
-    (* by destruct (coalg_bod f x). *) 
+    (* by destruct (coalg_mor f x). *) 
     admit.
   - simpl. intros X f g.
 Abort.
@@ -325,15 +325,15 @@ Abort.
 
 CoInductive stream A := cons { head: A; tail: stream A }.
 
-Program Definition stream_coalg A: COALGEBRA (F_times A) :=
+Program Definition stream_coalg A: Coalgebra (F_times A) :=
   {| coalg_car := stream A;
-     coalg_bod s := (head s, tail s) |}.
+     coalg_mor s := (head s, tail s) |}.
 
 Lemma final_stream_coalg A: final (stream_coalg A).
 Proof.
   unshelve esplit.
   - intro f. unshelve eexists; cbn.
-    cofix CH. intro x. destruct (coalg_bod f x) as [a y]. exact (cons a (CH y)).
-    apply funext=>x. cbn. by destruct (coalg_bod f x). 
+    cofix CH. intro x. destruct (coalg_mor f x) as [a y]. exact (cons a (CH y)).
+    apply funext=>x. cbn. by destruct (coalg_mor f x). 
   - intros X f g.
 Abort.

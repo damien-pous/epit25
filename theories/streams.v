@@ -41,9 +41,9 @@ Proof. intros x y H. apply (gfp_pfp b), H. Qed.
 
 Canonical stream_setoid := Setoid.build stream (gfp b) Equivalence_t.
 
-Program Definition stream_coalg: COALGEBRA (ex_setoids.F_times nat) :=
+Program Definition stream_coalg: Coalgebra (ex_setoids.F_times nat) :=
   {| coalg_car := stream_setoid;
-     coalg_bod := (efun s => (hd s, tl s)) |}. 
+     coalg_mor := (efun s => (hd s, tl s)) |}. 
 Next Obligation. 
   split. by apply hd_bisim. by apply tl_bisim. 
 Qed.
@@ -65,7 +65,7 @@ Theorem final_stream_coalg: final stream_coalg.
 Proof.
   split.
   - intro f. unshelve eexists.
-    exists (stream_corec (coalg_bod f)).
+    exists (stream_corec (coalg_mor f)).
     -- apply stream_corec_eqv.
     -- done. 
   - intros X f g. cbn. 
