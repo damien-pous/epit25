@@ -375,22 +375,6 @@ Section algebra.
          bwd := j;
          isoE := Lambek1;
          isoE' := Lambek2 |}. 
-
-    (** unfolding the definition of initiality for algebras, we actually get a recursion scheme *)
-    Definition rec (X: Algebra): 𝐂 I X := H X.    
-    Lemma recE X: rec X ∘ I ≡ X ∘ app F (rec X).
-    Proof. apply algE. Qed.
-    
-    Lemma rec_comp (X Y: Algebra) (f: X ~> Y): f ∘[𝐂] rec X ≡ rec Y.
-    Proof. apply (init_unique H _ (f ∘ H X) (H Y)). Qed.
-    
-    Corollary rec_eqv (X: 𝐂) (f g: F X ~> X): f ≡ g -> rec (alg X f) ≡ rec (alg X g).
-    Proof.
-      intro fg.
-      unshelve eset (h := _: alg X f ~> alg X g).
-      exists (id: X ~> X)=>/=. abstract (by rewrite idr app_id idl).
-      by rewrite -(rec_comp h) idr.
-    Qed.
   End initial_algebra.
 
 End algebra.

@@ -50,6 +50,10 @@ Bring you computer: the course will be based on Rocq exercises.
 
 # Difficultés
 
+- terminologie: rec ou iter ?
+  (cf. ex_types, où on utilisait les deux pour la même chose...)
+  -> j'ai fixé (co)iter pour l'instant
+
 - besoin de setoid-cats avant-même d'atteindre les coinductifs, pour pouvoir faire sans axiome la catégorie des algèbres (ou coalgèbres): il faut oublier les preuves que les homomorphismes en sont.
 
 - besoin de funext (+ propext) pour définir les foncteurs de base dans TYPES -> faire ETYPES ?

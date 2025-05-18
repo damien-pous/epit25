@@ -86,9 +86,18 @@ Qed.
 
 Inductive nat := O | S(n: nat).
 
+Definition nat_pack (n: option nat): nat :=
+  match n with Some n => S n | None => O end.
+
+Fixpoint nat_iter {X} (f: option X -> X) (n: nat) :=
+  match n with
+  | O => f None
+  | S n => f (Some (nat_iter f n))
+  end.
+
 Program Definition nat_alg: Algebra F_option :=
   {| alg_car := eq_setoid nat;
-     alg_mor := efun x => match x with Some x => S x | None => O end |}.
+     alg_mor := efun x => nat_pack x |}.
 Next Obligation.
   move=>[a|] [b|]//=; congruence.
 Qed.
@@ -96,20 +105,28 @@ Qed.
 Lemma init_nat_alg: initial nat_alg.
 Proof.
   unshelve esplit.
-  - intro f. unshelve eexists. unshelve eexists.
-    elim. exact (alg_mor f None).
-    intros _ x. exact (alg_mor f (Some x)).
-    cbn. typeclasses eauto.
-    cbn. by case.
-  - simpl. intros X g.
-    elim=>/=[|n IH]. apply (algE g None).
-    setoid_rewrite (algE g (Some _)). simpl.
-    apply: Setoid.body_eqv=>/=. exact: IH.
+  - intro f. unshelve eexists. exists (nat_iter (alg_mor f)).
+    -- cbn. typeclasses eauto.
+    -- cbn. by case.
+  - simpl. intros X g n.
+    induction n as [|n IH].
+    -- apply (algE g None).
+    -- setoid_rewrite (algE g (Some _)). simpl.
+       apply: Setoid.body_eqv=>/=. exact IH.
 Qed.
 
 (** ** `conatural unary numbers modulo bisimilarity' are the final coalgebra of the [option] functor *)
 
 CoInductive conat := coO | coS(n: conat).
+
+Definition conat_unpack (n: conat): option conat :=
+  match n with coS n => Some n | coO => None end.
+
+CoFixpoint conat_coiter {X} (f: X -> option X) (x: X): conat :=
+  match f x with
+  | None => coO
+  | Some y => coS (conat_coiter f y)
+  end.
 
 Module conat1.
 
@@ -137,27 +154,24 @@ Qed.
 
 Canonical conat_setoid := Setoid.build conat bisim Equivalence_bisim.
 
-Definition conat_coalg: Coalgebra F_option.
-  refine (@coalg _ F_option conat_setoid (efun x => match x with coS n => Some n | coO => None end)).
-Proof.
-  abstract by move=>[|n] [|m] /bisimulation_bisim nm.
-Defined.
+Program Definition conat_coalg: Coalgebra F_option :=
+  {| coalg_car := conat_setoid;
+     coalg_mor := efun n => conat_unpack n |}.
+Next Obligation. 
+  by move=>[|n] [|m] /bisimulation_bisim nm.
+Qed.
 
 Theorem final_conat_coalg: final conat_coalg.
 Proof.
   unshelve esplit.
   - intro f.
-    set g := cofix CH x :=
-        match coalg_mor f x with
-        | Some x => coS (CH x)
-        | None => coO
-        end.
-    unshelve eexists. exists g.
+    set g := conat_coiter (coalg_mor f).
+    unshelve eexists. exists g. 
     -- intros x y xy.
        set R := fun gx gy => exists x y, gx = g x /\ gy = g y /\ x ≡ y.
        exists R. split. 2: by unfold R; eauto.
        clear=>?? [x [y [-> [-> xy]]]]/=.
-       have: coalg_mor f x ≡ coalg_mor f y. by apply: Setoid.body_eqv.
+       have: coalg_mor f x ≡ coalg_mor f y by apply: Setoid.body_eqv.
        case: (coalg_mor f x); case: (coalg_mor f y)=>//= i j ij; unfold R; eauto.
     -- intro x; simpl. case (coalg_mor f x)=>//=. reflexivity.
   - intros X f g x.
@@ -209,21 +223,18 @@ Proof.
   - case:n=>[|x];case m=>[|y]=>//; by constructor.
 Defined.
 
-Definition conat_coalg: Coalgebra F_option.
-  refine (@coalg _ F_option conat_setoid (efun x => match x with coS n => Some n | coO => None end)).
-Proof.
+Program Definition conat_coalg: Coalgebra F_option :=
+  {| coalg_car := conat_setoid;
+     coalg_mor := efun n => conat_unpack n |}.
+Next Obligation. 
   by move=>[|n] [|m] // /bisimulation nm; auto; elim nm.
-Defined.
+Qed.
 
 Theorem final_conat_coalg: final conat_coalg.
 Proof.
   split.
   - intro f.
-    set g := cofix CH x :=
-        match coalg_mor f x with
-        | Some x => coS (CH x)
-        | None => coO
-        end.
+    set g := conat_coiter (coalg_mor f).
     unshelve eexists. exists g.
     -- cofix CH.
        move=>x y xy.
@@ -247,7 +258,10 @@ Proof.
     destruct (coalg_mor X x)=>//=.
     -- constructor.
     -- move=>mgs nfs; constructor. rewrite mgs nfs. apply (CH _).
-Admitted.                       (* not guarded... *)
+    (* not guarded... would need to unfold the implicit up-to technnique
+       in the unicity part of the proof *)
+    Fail Qed.
+Admitted.                    
 
 End conat2.
 
@@ -305,36 +319,37 @@ Proof.
   - by case; constructor.
 Qed.
 
-Definition stream_coalg A: Coalgebra (F_times A).
-  refine (@coalg _ (F_times A) (stream_setoid A)
-            (efun s => (head s, tail s))).
-Proof.
-  by move=>s t/bisimulation.
-Defined.
+#[local] Obligation Tactic := idtac. 
+Program Definition stream_coalg A: Coalgebra (F_times A) :=
+  {| coalg_car := stream_setoid A;
+     coalg_mor := efun s => (head s, tail s) |}.
+Next Obligation.
+  by move=>A s t/bisimulation.
+Qed.
 
-CoFixpoint stream_corec {A: Setoid} {X} (f: X -> A×X) x :=
-  let '(a,y) := f x in cons a (stream_corec f y).
+CoFixpoint stream_coiter {A: Setoid} {X} (f: X -> A×X) x :=
+  cons (f x).1 (stream_coiter f (f x).2).
 
 Lemma final_stream_coalg A: final (stream_coalg A).
 Proof.
   split.
   - intro f.
-    set g := cofix CH x := let y := coalg_mor f x in cons y.1 (CH y.2).
+    set g := stream_coiter (coalg_mor f). 
     unshelve eexists. eexists g.
     -- cofix CH. move=>x y xy.
-       apply (Setoid.body_eqv (coalg_mor f)) in xy.
+       apply (Setoid.body_eqv (coalg_mor f)) in xy. 
        constructor. apply xy. cbn. apply CH, xy.
     -- move=>x/=; split; reflexivity.
   - intros X f g.
-    (** proof with implicit upto technique, not guarded **)
+    (** commented out: proof with implicit upto technique, not guarded **)
     (* cofix CH. move=>x. *)
-    (* destruct (coalgE f x) as [fx1 fx2].  *)
+    (* destruct (coalgE f x) as [fx1 fx2]. *)
     (* destruct (coalgE g x) as [gx1 gx2]. *)
-    (* simpl in *.  *)
+    (* simpl in *. *)
     (* constructor. *)
     (* -- by rewrite fx1 gx1. *)
     (* -- setoid_rewrite fx2. setoid_rewrite gx2. apply (CH _). *)
-       
+
     (** making the up-to technique explicit, now guarded **)
     suff G: forall x fx gx, fx ≡ coalg_bod f x -> gx ≡ coalg_bod g x -> fx ≡ gx.
     by move=>y; apply: G.

@@ -48,11 +48,11 @@ Next Obligation.
   split. by apply hd_bisim. by apply tl_bisim. 
 Qed.
 
-CoFixpoint stream_corec {X} (f: X -> nat×X) x :=
-  cons (f x).1 (stream_corec f (f x).2).
+CoFixpoint stream_coiter {X} (f: X -> nat×X) x :=
+  cons (f x).1 (stream_coiter f (f x).2).
 
-Lemma stream_corec_eqv {X: Setoid} (f: X -eqv-> nat×X): 
-    Proper (eqv ==> gfp b) (stream_corec f).
+Lemma stream_coiter_eqv {X: Setoid} (f: X -eqv-> nat×X): 
+    Proper (eqv ==> gfp b) (stream_coiter f).
 Proof.  
   unfold Proper, respectful. coinduction R HR.
   intros x y xy. apply f in xy.
@@ -65,8 +65,8 @@ Theorem final_stream_coalg: final stream_coalg.
 Proof.
   split.
   - intro f. unshelve eexists.
-    exists (stream_corec (coalg_mor f)).
-    -- apply stream_corec_eqv.
+    exists (stream_coiter (coalg_mor f)).
+    -- apply stream_coiter_eqv.
     -- done. 
   - intros X f g. cbn. 
     coinduction R HR; intro x.

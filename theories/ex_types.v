@@ -107,31 +107,36 @@ Module abstract_nat.
   Definition c: option nat -> nat  := fwd i.
   Definition d: nat -> option nat  := bwd i.
 
-  (* 0 and successors *)
+  (* 0 and successor *)
   Definition O: nat := c None.
-  Definition S: nat -> nat := @comp TYPES _ _ _ c Some.
+  Definition S (n: nat): nat := c (Some n).
 
   (* And a recursion principle *)
-  Definition pack    {X : Type} (x : X) (s: X -> X) : Algebra F_option := @alg _ F_option X (fun ox => match ox with | None => x | Some y => s y end).
-  Definition nat_rec {X : Type} (x : X) (s: X -> X) := rec I (pack x s).
+  Definition pack_alg {X} (x : X) (s: X -> X): Algebra F_option :=
+    @alg _ _ X (fun ox => match ox with | None => x | Some y => s y end).
+
+  Definition abstract_nat_iter {X} (x : X) (s: X -> X): nat -> X :=
+    alg_bod (init_mor I (pack_alg x s)).
   
-  Lemma nat_recO {X : Type} (x : X) (s: X -> X) : nat_rec x s O = x.
+  Lemma abstract_nat_iterO X (x: X) (s: X -> X):
+    abstract_nat_iter x s O = x.
   Proof.
-    apply (funext' (recE I (pack x s)) None).
+    apply (funext' (algE (I (pack_alg x s))) None).
   Qed.
       
-  Lemma nat_recS {X : Type} (x : X) (s: X -> X): forall n, nat_rec x s (S n) = s (nat_rec x s n).
+  Lemma abstract_nat_iterS {X} (x: X) (s: X -> X):
+    forall n, abstract_nat_iter x s (S n) = s (abstract_nat_iter x s n).
   Proof.
     intros n.
-    apply (funext' (recE I (pack x s)) (Some n)).
+    apply (funext' (algE (I (pack_alg x s))) (Some n)).
   Qed.
 
-  Definition add (n m : nat) : nat := nat_rec m S n.
+  Definition add (n m: nat): nat := abstract_nat_iter m S n.
   Lemma addO n: add O n = n.
-  Proof. apply nat_recO. Qed.
+  Proof. apply abstract_nat_iterO. Qed.
 
   Lemma addS n m: add (S n) m = S (add n m).
-  Proof. apply nat_recS. Qed.
+  Proof. apply abstract_nat_iterS. Qed.
 
 End abstract_nat.
 
@@ -157,29 +162,9 @@ End initial_times.
 
 (* Exercise? *)
 Section initial_otimes.
-  (** option (A×X) *)
-Definition F_otimes (A : Type): Functor.
-unshelve econstructor.
-exact (fun X => option (A × X)).
-exact (fun X Y f => Option.map (fun ax => (ax.1,f ax.2))).
-cbv; intros; apply funext; intros [[] |]; by subst.
-cbv; intros; apply funext; intros [[] |]; by subst.
-cbv; intros; apply funext; intros [[] |]; by subst.
-Defined.
 
-(* Why do I get a weird error with [Program] ? *)
-(* because strangely, Program Definition does not propagate the type annotation early enough  *)
-(* 
-Program Definition F_otimes' A : Functor :=
-  {| app' X := option (A × X); 
-     app X Y f := Option.map (fun ax => (ax.1,f ax.2)) |}.
-Next Obligation.
-  intros. apply funext; by intros [[] |].
-Qed.
-Next Obligation.
-  intros.
-   apply funext. intros [[] |]; reflexivity.
-Fail Qed. *)
+(** [1 + A×X] *)
+Definition F_otimes (A : Type): Functor := functor_comp F_option (F_times A). 
 
 (* The pair (nil, cons) defines a list-algebra  *)
 Program Definition list_alg A: Algebra (F_otimes A) :=
@@ -295,12 +280,12 @@ End containers.
 
 CoInductive conat := coO | coS(n: conat).
 
-Definition conat_pack (n: conat): option conat :=
+Definition conat_unpack (n: conat): option conat :=
   match n with coS n => Some n | coO => None end.
 
 Definition conat_coalg: Coalgebra F_option :=
   {| coalg_car := conat: ob TYPES;
-     coalg_mor := conat_pack |}.
+     coalg_mor := conat_unpack |}.
 
 CoFixpoint conat_coiter {X} (f: X -> option X) (x: X): conat :=
   match f x with
@@ -312,11 +297,9 @@ Lemma final_conat_coalg: final conat_coalg.
 Proof.
   unshelve eexists.
   - intro f. exists (conat_coiter (coalg_mor f)).
-    apply funext=>x. simpl.
-    (* anomaly with Coq 8.17.1 ... *)
-    (* by destruct (coalg_mor f x). *) 
-    admit.
+    apply funext=>x. simpl. by destruct (coalg_mor f x). 
   - simpl. intros X f g.
+    (* not provable in Rocq *)
 Abort.
 
 
@@ -329,11 +312,14 @@ Program Definition stream_coalg A: Coalgebra (F_times A) :=
   {| coalg_car := stream A;
      coalg_mor s := (head s, tail s) |}.
 
+CoFixpoint stream_coiter {A X} (f: X -> A×X) x :=
+  cons (f x).1 (stream_coiter f (f x).2).
+
 Lemma final_stream_coalg A: final (stream_coalg A).
 Proof.
   unshelve esplit.
-  - intro f. unshelve eexists; cbn.
-    cofix CH. intro x. destruct (coalg_mor f x) as [a y]. exact (cons a (CH y)).
+  - intro f. exists (stream_coiter (coalg_mor f)).
     apply funext=>x. cbn. by destruct (coalg_mor f x). 
   - intros X f g.
+    (* not provable in Rocq *)
 Abort.
