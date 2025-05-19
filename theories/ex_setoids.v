@@ -164,30 +164,30 @@ Qed.
 Theorem final_conat_coalg: final conat_coalg.
 Proof.
   esplit.
-  - intro f.
-    set g := conat_coiter (coalg_mor f).
+  - intros [X f].
+    set g := conat_coiter f.
     esplit. exists g. 
     -- intros x y xy.
        set R := fun gx gy => exists x y, gx = g x /\ gy = g y /\ x ≡ y.
        exists R. split. 2: by unfold R; eauto.
        clear=>?? [x [y [-> [-> xy]]]]/=.
-       apply (coalg_mor f) in xy. 
-       destruct (coalg_mor f x);
-       destruct (coalg_mor f y); unfold R; eauto.
-    -- intro x=>/=. case (coalg_mor f x)=>//=. reflexivity.
-  - intros X f g x.
-    set R := fun fx gx => exists x, fx ≡ coalg_bod f x /\ gx ≡ coalg_bod g x.
+       apply f in xy. 
+       destruct (f x);
+       destruct (f y); unfold R; eauto.
+    -- intro x=>/=. case (f x)=>//=. reflexivity.
+  - intros [X h] [f Hf] [g Hg] x.
+    set R := fun fx gx => exists x, fx ≡ f x /\ gx ≡ g x.
     exists R. split. 2: by unfold R; eauto.
-    clear; move=>n m [x [nfx mgx]]//=.
-    have /= := coalgE f x.
-    have /= := coalgE g x.
+    clear x; move=>n m [x [nfx mgx]]//=.
     apply bisimulation_bisim in nfx.
     apply bisimulation_bisim in mgx.
-    destruct (coalg_bod f x) eqn:fx;
-    destruct (coalg_bod g x) eqn:gx;
-    destruct (coalg_mor X x) eqn:Xx=>//=.
-    -- intros _ _. destruct n; destruct m=>//=.
-    -- intros ? ?. destruct n; destruct m=>//=.
+    generalize (Hf x).
+    generalize (Hg x). cbn. 
+    destruct (f x) eqn:fx;
+    destruct (g x) eqn:gx;
+    destruct (h x) eqn:hx=>//=.
+    -- destruct n; destruct m=>//=.
+    -- destruct n; destruct m=>//=.
        eexists; split.
        rewrite nfx. eassumption.
        rewrite mgx. eassumption.
@@ -234,34 +234,34 @@ Qed.
 Theorem final_conat_coalg: final conat_coalg.
 Proof.
   split.
-  - intro f.
-    set g := conat_coiter (coalg_mor f).
+  - intros [X f].
+    set g := conat_coiter f.
     esplit. exists g.
     -- cofix CH.
        move=>x y xy.
-       apply (coalg_mor f) in xy.
+       apply f in xy.
        apply/bisimulation=>/=.
-       destruct (coalg_mor f x);
-       destruct (coalg_mor f y); move=>//=.
+       destruct (f x);
+       destruct (f y); move=>//=.
        by apply CH.
-    -- intro x=>/=. case (coalg_mor f x)=>//=. reflexivity.
-  - intros X f g.
+    -- intro x=>/=. case (f x)=>//=. reflexivity.
+  - intros [X h] [f Hf] [g Hg].
     cofix CH.
     move=>x.
-    have /= := coalgE f x.
-    have /= := coalgE g x.
-    remember (coalg_bod f x) as n eqn:nfx.
-    remember (coalg_bod g x) as m eqn:mgx.
+    have /= := Hf x.
+    have /= := Hg x.
+    remember (f x) as n eqn:nfx.
+    remember (g x) as m eqn:mgx.
     setoid_rewrite <-nfx.
     setoid_rewrite <-mgx.
     destruct n;
     destruct m;
-    destruct (coalg_mor X x)=>//=.
+    destruct (h x)=>//=.
     -- constructor.
     -- move=>mgs nfs; constructor. rewrite mgs nfs. apply (CH _).
     (* not guarded... would need to unfold the implicit up-to technnique
        in the unicity part of the proof *)
-    Fail Qed.
+Fail Qed.
 Admitted.                    
 
 End conat2.
@@ -334,29 +334,29 @@ CoFixpoint stream_coiter {A: Setoid} {X} (f: X -> A×X) x :=
 Lemma final_stream_coalg A: final (stream_coalg A).
 Proof.
   split.
-  - intro f.
-    set g := stream_coiter (coalg_mor f). 
+  - intros [X f].
+    set g := stream_coiter f. 
     esplit. eexists g.
     -- cofix CH. move=>x y xy.
-       apply (coalg_mor f) in xy. 
+       apply f in xy. 
        constructor. apply xy. cbn. apply CH, xy.
     -- move=>x/=; split; reflexivity.
-  - intros X f g.
+  - intros [X h] [f Hf] [g Hg].
     (** commented out: proof with implicit upto technique, not guarded **)
     (* cofix CH. move=>x. *)
-    (* destruct (coalgE f x) as [fx1 fx2]. *)
-    (* destruct (coalgE g x) as [gx1 gx2]. *)
+    (* destruct (Hf x) as [fx1 fx2]. *)
+    (* destruct (Hg x) as [gx1 gx2]. *)
     (* cbn in *. *)
     (* constructor. *)
     (* -- by rewrite fx1 gx1. *)
     (* -- setoid_rewrite fx2. setoid_rewrite gx2. apply (CH _). *)
 
     (** making the up-to technique explicit, now guarded **)
-    suff G: forall x fx gx, fx ≡ coalg_bod f x -> gx ≡ coalg_bod g x -> fx ≡ gx.
+    suff G: forall x fx gx, fx ≡ f x -> gx ≡ g x -> fx ≡ gx.
     by move=>y; apply (G y).
     cofix CH. move=>x fx gx /=Hfx Hgx.
-    destruct (coalgE f x) as [fx1 fx2]. 
-    destruct (coalgE g x) as [gx1 gx2].
+    destruct (Hf x) as [fx1 fx2]. 
+    destruct (Hg x) as [gx1 gx2].
     cbn in *. 
     constructor.
     (** why does rewrite fail?? **)
@@ -365,7 +365,7 @@ Proof.
        setoid_rewrite fx1. symmetry.
        etransitivity. apply head_eqv. rewrite Hgx. reflexivity.
        apply gx1. 
-    -- apply CH with (coalg_mor X x).2. 
+    -- apply CH with (h x).2. 
        etransitivity. apply tail_eqv. rewrite Hfx. reflexivity.
        apply fx2. 
        etransitivity. apply tail_eqv. rewrite Hgx. reflexivity.
