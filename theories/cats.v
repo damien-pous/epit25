@@ -1,6 +1,6 @@
 From epit Require Export setoids.
 
-(** Bisimulation and coinductive types in the Rocq proof assistant
+(** * Bisimulation and coinductive types in the Rocq proof assistant
     Course 1: Formalizing initial algebras and final coalgebras---towards the need for quotients
 *)
 
@@ -55,7 +55,7 @@ Notation "g ∘ f" := (comp g f).
 Infix "∘[ 𝐂 ] " := (@comp 𝐂 _ _ _) (at level 40, left associativity, only parsing).
 Notation "A ~> B" := (hom _ A B) (at level 99, B at level 200, format "A  ~>  B").
 
-(* We can already toy with the structure by defining a few categories.
+(** We can already toy with the structure by defining a few categories.
    Note that [Program] allows you to only fill in explicitely the data in the definition of the structure.
    It will try to solve the properties automatically, and will provide them to you as obligations to solve interactively otherwise.
  *)
@@ -81,12 +81,12 @@ Section example_categories.
       comp _ _ _ f g := fun x => f (g x);
     |}.
 
-  (*** Exercise
+  (** ** Exercise
     Define the category REL, whose objects are [Type]s and morphisms are relations.
   *)
     Fail Program Definition REL: Category := {|  |}.
 
-  (*** Exercise
+  (** ** Exercise
     Given a Type [A] and a preorder [R] on [A], define the category PRE whose objects are [A]s and morphisms x -> y if and only if x <= y.
     Hints:
     - The standard library provides the [PreOrder] structure.
@@ -96,7 +96,7 @@ Section example_categories.
   *)
     Fail Program Definition PRE {A R} (PR : @PreOrder A R) : Category := {| |}.
 
-  (*** Exercise
+  (** ** Exercise
     Define the [dual] category.
   *)
   Fail Program Definition dual (𝐂: Category): Category :=
@@ -106,16 +106,16 @@ End example_categories.
 
 
 
-(** 2. Isomorphisms *)
+(** * 2. Isomorphisms *)
 
-(** * epi/monos (SKIP??) *)
+(** ** epi/monos *)
 Section epimono.
   Context {𝐂: Category}.
   Definition epi {A B: 𝐂} (f: A ~> B) := forall C (g h: B ~> C), g ∘ f ≡ h ∘ f -> g ≡ h.
   Definition mono {A B: 𝐂} (f: A ~> B) := forall C (g h: C ~> A), f ∘ g ≡ f ∘ h -> g ≡ h.
 End epimono.
 
-(** * isomorphisms *)
+(** ** isomorphisms *)
 Section iso.
   Context {𝐂: Category}.
   Record iso (A B: 𝐂) :=
@@ -201,7 +201,7 @@ End universal.
 
 Section example_initial_final.
 
-  (*** Exercise
+  (** ** Exercise
     Define the initial and final objects in TYPES
   *)
 

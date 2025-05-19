@@ -19,10 +19,10 @@ Program Definition F_times (A: Setoid): Functor :=
   {| app' X := (A × X: Setoid);
      app X Y f := efun ax => (ax.1,f ax.2) |}.
 Next Obligation.
-  move=>/=A X Y f ax ay [aa xy]/=. by rewrite xy.
+  intros A X Y f ax ay [aa xy]; cbn. by rewrite xy.
 Qed.
 Next Obligation.
-  move=>/=A B C f g E [a b]//=.
+  by intros A B C f g E [a b]; cbn.
 Qed.
 
 (** option *)
@@ -30,8 +30,8 @@ Program Definition F_option: Functor :=
   {| app' := option_setoid;
      app := @option_map' |}.    (* TODO: inline *)
 Next Obligation. by intros * ?? H []; cbn. Qed.
-Next Obligation. by move=>?[]. Qed.
-Next Obligation. by move=>*[]. Qed.
+Next Obligation. by intros ?[]. Qed.
+Next Obligation. by intros *[]. Qed.
 
 (** list *)
 Program Definition F_list: Functor :=
@@ -62,22 +62,22 @@ Program Definition F_pow: Functor :=
   {| app' X := ((X -eqv-> Prop): Setoid);
      app X Y f := efun S y => exists x, S x /\ y ≡ f x |}.
 Next Obligation.
-  move=>* y y' yy/=. by setoid_rewrite yy.
+  intros * y y' yy; cbn. by setoid_rewrite yy.
 Qed.
 Next Obligation.
-  move=>* S T ST y/=.
-  split; move=>[x [Sx E]]; exists x; split=>//; by apply ST.
+  intros * S T ST y; cbn.
+  split; intros [x [Sx E]]; exists x; split=>//; by apply ST.
 Qed.
 Next Obligation.
-  move=>* f g /=fg S b.
+  intros * f g fg S b; cbn in *.
   by setoid_rewrite fg.
 Qed.
 Next Obligation.
-  move=>/=*. split=>H; eauto.
+  cbn; intros *. split=>H; eauto.
   by destruct H as [? [Sy ->]].
 Qed.
 Next Obligation.
-  move=>/=*. split; move=>[x [Hx E]]; eauto.
+  cbn; intros *. split; move=>[x [Hx E]]; eauto.
   destruct Hx as [u [Hu F]]. exists u. split=>//.
   by rewrite -F.
 Qed.
@@ -99,7 +99,7 @@ Program Definition nat_alg: Algebra F_option :=
   {| alg_car := eq_setoid nat;
      alg_mor := efun x => nat_pack x |}.
 Next Obligation.
-  move=>[a|] [b|]//=; congruence.
+  intros [a|] [b|]=>//=; congruence.
 Qed.
 
 Lemma init_nat_alg: initial nat_alg.
@@ -178,7 +178,7 @@ Proof.
   - intros [X h] [f Hf] [g Hg] x.
     set R := fun fx gx => exists x, fx ≡ f x /\ gx ≡ g x.
     exists R. split. 2: by unfold R; eauto.
-    clear x; move=>n m [x [nfx mgx]]//=.
+    clear x; intros n m [x [nfx mgx]]=>//=.
     apply bisimulation_bisim in nfx.
     apply bisimulation_bisim in mgx.
     generalize (Hf x).
@@ -205,8 +205,8 @@ Lemma Equivalence_bisim: Equivalence bisim.
 Proof.
   split.
   - cofix CH; case; constructor; reflexivity.
-  - cofix CH; move=>??[|n m nm]; constructor; by symmetry.
-  - cofix CH; move=>???[|n m nm]; inversion_clear 1; constructor; etransitivity; eassumption.
+  - cofix CH; intros??[|n m nm]; constructor; by symmetry.
+  - cofix CH; intros???[|n m nm]; inversion_clear 1; constructor; etransitivity; eassumption.
 Qed.
 
 Canonical conat_setoid := Setoid.build conat bisim Equivalence_bisim.
@@ -220,9 +220,9 @@ Lemma bisimulation (n m: conat):
       end.
 Proof.
   split.
-  - case:n=>[|x];case m=>[|y]; by inversion_clear 1.
-  - case:n=>[|x];case m=>[|y]=>//; by constructor.
-Defined.
+  - destruct n; destruct m; by inversion_clear 1.
+  - destruct n; destruct m; try done; by constructor.
+Qed.
 
 Program Definition conat_coalg: Coalgebra F_option :=
   {| coalg_car := conat_setoid;
@@ -238,16 +238,16 @@ Proof.
     set g := conat_coiter f.
     esplit. exists g.
     -- cofix CH.
-       move=>x y xy.
+       intros x y xy.
        apply f in xy.
        apply/bisimulation=>/=.
        destruct (f x);
-       destruct (f y); move=>//=.
+       destruct (f y)=>//=.
        by apply CH.
     -- intro x=>/=. case (f x)=>//=. reflexivity.
   - intros [X h] [f Hf] [g Hg].
     cofix CH.
-    move=>x.
+    intro x.
     have /= := Hf x.
     have /= := Hg x.
     remember (f x) as n eqn:nfx.
@@ -258,7 +258,7 @@ Proof.
     destruct m;
     destruct (h x)=>//=.
     -- constructor.
-    -- move=>mgs nfs; constructor. rewrite mgs nfs. apply (CH _).
+    -- intros mgs nfs; constructor. rewrite mgs nfs. apply (CH _).
     (* not guarded... would need to unfold the implicit up-to technnique
        in the unicity part of the proof *)
 Fail Qed.
@@ -275,7 +275,7 @@ Program Definition empty_alg A: Algebra (F_times A) :=
   {| alg_car := eq_setoid empty;
      alg_mor := efun x => match x.2 with end |}.
 Next Obligation.
-  by move=>/=A [?[]].
+  by intros A [?[]].
 Qed.
 
 Lemma init_empty_alg A: initial (empty_alg A).
@@ -299,18 +299,18 @@ CoInductive bisim {A}: relation (stream A) :=
 Lemma Equivalence_bisim {A}: Equivalence (@bisim A).
 Proof.
   split.
-  - cofix CH; move=>?; constructor; reflexivity.
-  - cofix CH; move=>??[]; constructor; by symmetry.
-  - cofix CH; move=>???; do 2 inversion_clear 1; constructor; etransitivity; eassumption.
+  - cofix CH; intros ?; constructor; reflexivity.
+  - cofix CH; intros ??[]; constructor; by symmetry.
+  - cofix CH; intros ???; do 2 inversion_clear 1; constructor; etransitivity; eassumption.
 Qed.
 
 Canonical stream_setoid A := Setoid.build (stream A) bisim Equivalence_bisim.
 
 Instance head_eqv A: Proper (bisim ==> eqv) (@head A).
-Proof. by move=>s t []. Qed.
+Proof. by intros s t []. Qed.
 
 Instance tail_eqv A: Proper (bisim ==> bisim) (@tail A).
-Proof. by move=>s t []. Qed.
+Proof. by intros s t []. Qed.
 
 Lemma bisimulation {A} (n m: stream A):
   n ≡ m <-> head n ≡ head m /\ tail n ≡ tail m.
@@ -337,13 +337,13 @@ Proof.
   - intros [X f].
     set g := stream_coiter f. 
     esplit. eexists g.
-    -- cofix CH. move=>x y xy.
+    -- cofix CH. intros x y xy.
        apply f in xy. 
        constructor. apply xy. cbn. apply CH, xy.
-    -- move=>x/=; split; reflexivity.
+    -- intros x; cbn; split; reflexivity.
   - intros [X h] [f Hf] [g Hg].
     (** commented out: proof with implicit upto technique, not guarded **)
-    (* cofix CH. move=>x. *)
+    (* cofix CH. intro x. *)
     (* destruct (Hf x) as [fx1 fx2]. *)
     (* destruct (Hg x) as [gx1 gx2]. *)
     (* cbn in *. *)
@@ -353,8 +353,8 @@ Proof.
 
     (** making the up-to technique explicit, now guarded **)
     suff G: forall x fx gx, fx ≡ f x -> gx ≡ g x -> fx ≡ gx.
-    by move=>y; apply (G y).
-    cofix CH. move=>x fx gx /=Hfx Hgx.
+    by intro y; apply (G y).
+    cofix CH. cbn. intros x fx gx Hfx Hgx.
     destruct (Hf x) as [fx1 fx2]. 
     destruct (Hg x) as [gx1 gx2].
     cbn in *. 

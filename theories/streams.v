@@ -64,15 +64,14 @@ Qed.
 Theorem final_stream_coalg: final stream_coalg.
 Proof.
   split.
-  - intro f. esplit.
-    exists (stream_coiter (coalg_mor f)).
+  - intros [X f]. esplit. exists (stream_coiter f).
     -- apply stream_coiter_eqv.
     -- done. 
-  - intros X f g. cbn. 
+  - intros [X h] [f Hf] [g Hg]. cbn in *. 
     coinduction R HR; intro x.
-    destruct (coalgE f x) as [fx1 fx2].
-    destruct (coalgE g x) as [gx1 gx2].
-    simpl in *. split.    
+    destruct (Hf x) as [fx1 fx2].
+    destruct (Hg x) as [gx1 gx2].
+    split.    
     -- by rewrite fx1 gx1. 
     -- by rewrite fx2 gx2. 
 Qed.
@@ -88,23 +87,23 @@ Infix "+" := plus.
 
 Lemma plusC: forall x y, x + y ~ y + x.
 Proof.
-  coinduction R HR. intros x y. split; simpl.
-   lia.
-   apply HR.
+  coinduction R HR. intros x y. split; cbn.
+  - lia.
+  - apply HR.
 Qed.
 
 Lemma plus_0x x: c 0 + x ~ x.
 Proof.
-  revert x. coinduction R HR. intro x. split; simpl.
-   reflexivity.
-   apply HR.
+  revert x. coinduction R HR. intro x. split; cbn.
+  - reflexivity.
+  - apply HR.
 Qed. 
 
 Lemma plusA: forall x y z, x + (y + z) ~ (x + y) + z.
 Proof.
-  coinduction R HR. intros x y z. split; simpl.
-   lia.
-   apply HR.
+  coinduction R HR. intros x y z. split; cbn.
+  - lia.
+  - apply HR.
 Qed.
 
 (** addition corresponds to a compatible function and preserves the final chain *)
@@ -137,32 +136,32 @@ Parameter shuf: stream -> stream -> stream.
 Infix "@" := shuf (at level 40, left associativity).
 Axiom hd_shuf: forall s t, hd (s @ t) = (hd s * hd t)%nat.
 Axiom tl_shuf: forall s t, tl (s @ t) = tl s @ t + s @ tl t.
-Ltac ssimpl := repeat (rewrite ?hd_shuf ?tl_shuf; simpl hd; simpl tl).
+Ltac cbn_shuf := repeat (rewrite ?hd_shuf ?tl_shuf; simpl hd; simpl tl).
 
 Lemma shuf_0x: forall x, c 0 @ x ~ c 0.
 Proof.
-  coinduction R HR. intros x. split; ssimpl.
+  coinduction R HR. intros x. split; cbn_shuf.
   - nia.
   - rewrite HR. rewrite plus_0x. apply HR. 
 Qed.
 
 Lemma shuf_1x: forall x, c 1 @ x ~ x.
 Proof.
-  coinduction R HR. intros x. split; ssimpl.
+  coinduction R HR. intros x. split; cbn_shuf.
   - lia.
   - rewrite shuf_0x plus_0x. apply HR.
 Qed.
 
 Lemma shufC: forall x y, x @ y ~ y @ x.
 Proof.
-  coinduction R HR. intros x y. split; ssimpl.
+  coinduction R HR. intros x y. split; cbn_shuf.
   - nia.
   - by rewrite HR plusC HR. 
 Qed.
 
 Lemma shuf_x_plus: forall x y z, x @ (y + z) ~ x@y + x@z.
 Proof.
-  coinduction R HR. intros x y z. split; ssimpl.
+  coinduction R HR. intros x y z. split; cbn_shuf.
   - nia. 
   - rewrite 2!HR. rewrite 2!plusA. 
     apply plus_chain. 2: reflexivity.
@@ -178,7 +177,7 @@ Qed.
 
 Lemma shufA: forall x y z, x @ (y @ z) ~ (x @ y) @ z.
 Proof.
-  coinduction R HR. intros x y z. split; ssimpl.
+  coinduction R HR. intros x y z. split; cbn_shuf.
   - nia.
   - rewrite shuf_x_plus shuf_plus_x. rewrite 3!HR.
     by rewrite plusA. 
@@ -191,7 +190,7 @@ Proof.
   intros R HR x y xy u v uv. 
   pose proof xy as [xy0 xy'].
   pose proof uv as [uv0 uv'].
-  split; ssimpl.
+  split; cbn_shuf.
   - congruence.
   - by rewrite xy' uv' xy uv.
 Qed.
@@ -220,39 +219,39 @@ Parameter mult: stream -> stream -> stream.
 Infix "*" := mult.
 Axiom hd_mult: forall s t, hd (s * t) = (hd s * hd t)%nat.
 Axiom tl_mult: forall s t, tl (s * t) = tl s * t + c (hd s) * tl t.
-Ltac msimpl := repeat (rewrite ?hd_mult ?tl_mult; simpl hd; simpl tl).
+Ltac cbn_mult := repeat (rewrite ?hd_mult ?tl_mult; simpl hd; simpl tl).
 
 Lemma mult_0x: forall x, c 0 * x ~ c 0.
 Proof.
-  coinduction R HR. intros x. split; msimpl.
+  coinduction R HR. intros x. split; cbn_mult.
   - nia.
   - rewrite HR. rewrite plus_0x. apply HR. 
 Qed.
 
 Lemma mult_x0: forall x, x  * c 0 ~ c 0.
 Proof.
-  coinduction R HR. intros x. split; msimpl.
+  coinduction R HR. intros x. split; cbn_mult.
   - nia.
   - rewrite HR. rewrite plus_0x. apply HR. 
 Qed.
 
 Lemma mult_1x: forall x, c 1 * x ~ x.
 Proof.
-  coinduction R HR. intros x. split; msimpl.
+  coinduction R HR. intros x. split; cbn_mult.
   - lia.
   - rewrite mult_0x plus_0x. apply HR.
 Qed.
 
 Lemma mult_x1: forall x, x * c 1 ~ x.
 Proof.
-  coinduction R HR. intros x. split; msimpl.
+  coinduction R HR. intros x. split; cbn_mult.
   - lia.
   - rewrite mult_x0 plusC plus_0x. apply HR.
 Qed.
 
 Lemma mult_x_plus: forall x y z, x * (y + z) ~ x*y + x*z.
 Proof.
-  coinduction R HR. intros x y z. split; msimpl.
+  coinduction R HR. intros x y z. split; cbn_mult.
   - nia. 
   - rewrite 2!HR. rewrite 2!plusA. 
     apply plus_chain. 2: reflexivity.
@@ -262,14 +261,14 @@ Qed.
 
 Lemma c_plus n m: c (n+m) ~ c n + c m.
 Proof.
-  coinduction R HR. clear HR. split; simpl.
+  coinduction R HR. clear HR. split; cbn.
   - reflexivity.
   - by rewrite plus_0x.
 Qed.
 
 Lemma c_mult n m: c (n*m) ~ c n * c m.
 Proof.
-  coinduction R HR. clear HR. split; msimpl.
+  coinduction R HR. clear HR. split; cbn_mult.
   - reflexivity.
   - by rewrite mult_0x mult_x0 plus_0x.
 Qed.
@@ -281,14 +280,14 @@ Proof.
   intros R HR x y xy u v uv. 
   pose proof xy as [xy0 xy'].
   pose proof uv as [uv0 uv'].
-  split; msimpl.
+  split; cbn_mult.
   - congruence.
   - by rewrite xy' uv' xy0 uv.
 Qed.
 
 Lemma mult_plus_x: forall x y z, (y + z) * x ~ y*x + z*x.
 Proof.
-  coinduction R HR. intros x y z. split; msimpl.
+  coinduction R HR. intros x y z. split; cbn_mult.
   - nia. 
   - rewrite c_plus 2!HR 2!plusA.
     apply plus_chain. 2: reflexivity.
@@ -298,7 +297,7 @@ Qed.
 
 Lemma multA: forall x y z, x * (y * z) ~ (x * y) * z.
 Proof.
-  coinduction R HR. intros x y z. split; msimpl.
+  coinduction R HR. intros x y z. split; cbn_mult.
   - nia.
   - rewrite mult_x_plus. rewrite 3!HR.
     rewrite plusA -mult_plus_x.
@@ -310,7 +309,7 @@ Qed.
      
 Lemma multC_n n: forall x, c n * x ~ x * c n.
 Proof.
-  coinduction R HR. intro x. split; msimpl.
+  coinduction R HR. intro x. split; cbn_mult.
   - nia.
   - by rewrite mult_0x mult_x0 plusC HR.
 Qed.
@@ -319,21 +318,21 @@ Definition X := cons 0 (c 1).
 
 Theorem expand x: x ~ c (hd x) + X * tl x.
 Proof.
-  coinduction R HR. clear HR. split; msimpl.
+  coinduction R HR. clear HR. split; cbn_mult.
   - nia.
   - by rewrite mult_0x mult_1x plus_0x plusC plus_0x.
 Qed.
 
 Lemma multC_11 x: tl (X * x) ~ x.
 Proof.
-  coinduction R HR. clear HR. split; msimpl.
+  coinduction R HR. clear HR. split; cbn_mult.
   - nia.
   - by rewrite !mult_0x mult_1x 2!plus_0x plusC plus_0x.
 Qed.
 
 Lemma multC_X: forall x, X * x ~ x * X. 
 Proof.
-  coinduction R HR. intro x. split; msimpl.      
+  coinduction R HR. intro x. split; cbn_mult.      
   - nia. 
   - rewrite mult_0x mult_1x mult_x1.
     rewrite plusC plus_0x.
@@ -343,7 +342,7 @@ Qed.
 Lemma multC: forall x y, x * y ~ y * x.
 Proof.
   coinduction R HR. intros x y. split.
-  - msimpl; nia.
+  - cbn_mult; nia.
   - rewrite {1}(expand x). rewrite mult_plus_x. simpl tl.
     rewrite -multA multC_11.
     rewrite (HR (tl x)).
