@@ -37,7 +37,7 @@ Next Obligation. by move=>*[]. Qed.
 (** list *)
 Program Definition F_list: Functor :=
   {| app' := list; app := List.map |}.
-Next Obligation. move=>* f g /=fg. elim=> [|a q IH]=>//=. by f_equal. Qed.
+Next Obligation. move=>* f g /=fg l. induction l as [|a q IH]=>//=. by f_equal. Qed.
 Next Obligation. intros. elim=>/=; congruence. Qed.
 Next Obligation. intros. elim=>/=; congruence. Qed.
 
@@ -52,7 +52,7 @@ Qed.
 Program Definition F_pow: Functor :=
   {| app' X := (X -> Prop); app X Y f S := fun y => exists x, S x /\ y = f x |}.
 Next Obligation.
-  move=>/=* f g fg S. apply: funext=>b. apply: propext. (* still need [funext] and [propext] *)
+  move=>/=* f g fg S. apply funext=>b. apply propext. (* still need [funext] and [propext] *)
   by setoid_rewrite fg.
 Qed.
 Next Obligation.
@@ -76,12 +76,12 @@ Program Definition nat_alg: Algebra F_option :=
 
 Lemma init_nat_alg: initial nat_alg.
 Proof.
-  unshelve esplit.
-  - intro f. unshelve eexists.
+  esplit.
+  - intro f. esplit.
     elim. exact (alg_mor f None).
     intros _ x. exact (alg_mor f (Some x)).
     by case.
-  - simpl. intros X g.
+  - cbn. intros X g.
     elim=>/=[|n IH]. apply (algE g None).
     rewrite -IH. apply (algE g (Some _)).
 Qed.
@@ -95,12 +95,12 @@ Definition conat_coalg: Coalgebra F_option :=
 
 Lemma final_conat_coalg: final conat_coalg.
 Proof.
-  unshelve esplit.
-  - intro f. unshelve eexists; cbn.
+  esplit.
+  - intro f. esplit; cbn.
     cofix CH. intro x. destruct (coalg_mor f x) as [c|].
     apply coS, CH, c.
     apply coO.
-    intro x; simpl. by destruct (coalg_mor f x).
+    intro x; cbn. by destruct (coalg_mor f x).
   - intros X f g.
     cbn.
     intro x.                    (* does not help *)

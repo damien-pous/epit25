@@ -154,7 +154,7 @@ Section example_categories.
       idr := @idl 𝐂;
     |}.
   Next Obligation.
-    repeat intro. by apply: comp_eqv.
+    repeat intro. by apply comp_eqv.
   Qed.
   Next Obligation.
     symmetry. apply compA.
@@ -289,14 +289,14 @@ Section example_initial_final.
   (* BEGIN SOLUTION *)
   (*
   Definition initial_types : @initial TYPES False.
-  unshelve esplit. 
+  esplit. 
   refine (fun _ abs => match abs : False with end).
   intros.
   apply funext; intros [].
   Qed.
 
   Definition final_types : @final TYPES unit.
-  unshelve esplit.
+  esplit.
   refine (fun _ _ => tt).
   intros.
   apply funext; intros a; destruct (f a); destruct (g a); reflexivity.
@@ -325,9 +325,7 @@ Program Definition functor_id {𝐂}: Functor 𝐂 𝐂 :=
     app' A := A;
     app _ _ f := f;
   |}.
-Next Obligation.
-  by intros ???.
-Qed.
+Next Obligation. by intros. Qed.
 
 (** Composition of functors *)
 Program Definition functor_comp {𝐂 𝐃 𝐄} (G: Functor 𝐃 𝐄) (F: Functor 𝐂 𝐃): Functor 𝐂 𝐄 :=
@@ -336,7 +334,7 @@ Program Definition functor_comp {𝐂 𝐃 𝐄} (G: Functor 𝐃 𝐄) (F: Func
     app _ _ f := app G (app F f);
   |}.
 Next Obligation.
-  intros* f g fg. by do 2 apply app_eqv.
+  intros* f g fg. by apply app_eqv, app_eqv.
 Qed.
 Next Obligation. cbn; intros. by rewrite 2!app_id. Qed.
 Next Obligation. cbn; intros. by rewrite 2!app_comp. Qed.
@@ -374,14 +372,14 @@ Section algebra.
     }.
 
   (** F-algebra homomorphisms: morphisms making the obvious square commute *)
-  Record alg_hom (A B: Algebra) :=
+  Record Alg_hom (A B: Algebra) := alg_hom
     {
       alg_bod:> A ~> B;
       algE: alg_bod ∘ A ≡ B ∘ app F alg_bod
     }.
   Arguments alg_bod {_ _}.
 
-  Program Definition alg_id (A: Algebra): alg_hom A A :=
+  Program Definition alg_id (A: Algebra): Alg_hom A A :=
     {| alg_bod := id |}.
   Next Obligation.
     (* SOLUTION *)
@@ -389,7 +387,7 @@ Section algebra.
   Qed.
 
   Program Definition alg_comp (A B C: Algebra)
-    (g: alg_hom B C) (f: alg_hom A B): alg_hom A C :=
+    (g: Alg_hom B C) (f: Alg_hom A B): Alg_hom A C :=
     {| alg_bod := g ∘ f |}.
   Next Obligation.
     (* SOLUTION *)
@@ -397,7 +395,7 @@ Section algebra.
   Qed.
 
   (** We compare algebra homomorphisms via their underlying morphisms *)
-  Canonical alg_hom_setoid (A B: Algebra) :=
+  Canonical Alg_hom_setoid (A B: Algebra) :=
     kern_setoid _ (@alg_bod A B).
 
   (** F-algebras form a category *)
@@ -428,7 +426,7 @@ Section algebra.
     Lemma Lambek1: i ∘ j ≡ id.
     Proof. 
       (* SOLUTION *)
-      set i' := Build_alg_hom FI I i (eqv_refl _).
+      set i' := alg_hom FI I i (eqv_refl _).
       apply (init_unique H I (i' ∘ H FI) (alg_id _)).
     Qed.
     Lemma Lambek2: j ∘ i ≡ id.
@@ -464,14 +462,14 @@ Section coalgebra.
     }.
 
   (** F-coalgebra homomorphisms: morphisms making the obvious square commute *)
-  Record coalg_hom (A B: Coalgebra) :=
+  Record Coalg_hom (A B: Coalgebra) := coalg_hom
     {
       coalg_bod:> A ~> B;
       coalgE: B ∘ coalg_bod ≡ app F coalg_bod ∘ A
     }.
   Arguments coalg_bod {_ _}.
 
-  Program Definition coalg_id (A: Coalgebra): coalg_hom A A :=
+  Program Definition coalg_id (A: Coalgebra): Coalg_hom A A :=
     {| coalg_bod := id |}.
   Next Obligation.
     (* SOLUTION *)
@@ -479,7 +477,7 @@ Section coalgebra.
   Qed.
 
   Program Definition coalg_comp (A B C: Coalgebra)
-    (g: coalg_hom B C) (f: coalg_hom A B): coalg_hom A C :=
+    (g: Coalg_hom B C) (f: Coalg_hom A B): Coalg_hom A C :=
     {| coalg_bod := g ∘ f |}.
   Next Obligation.
     (* SOLUTION *)
@@ -487,7 +485,7 @@ Section coalgebra.
   Qed.
 
   (** We compare coalgebra homomorphisms via their underlying morphisms *)
-  Canonical coalg_hom_setoid (A B: Coalgebra) :=
+  Canonical Coalg_hom_setoid (A B: Coalgebra) :=
     kern_setoid _ (@coalg_bod A B).
 
   (** F-coalgebras form a category *)
@@ -521,7 +519,7 @@ Section coalgebra.
     (** it remains to prove that they are inverse of each other *)
     Lemma CoLambek1: y ∘ z ≡ id.
     Proof. 
-      set z' := Build_coalg_hom Z FZ z (eqv_refl _).
+      set z' := coalg_hom Z FZ z (eqv_refl _).
       apply (fin_unique H _ (H FZ ∘ z') (coalg_id _)).
     Qed.
     Lemma CoLambek2: z ∘ y ≡ id.
