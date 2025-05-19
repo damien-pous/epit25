@@ -42,3 +42,18 @@ You then need to set the `VScoq: Path` variable to point to your `coqtop`, i.e.,
 Alternative ide.
 
 > `opam install rocqide`
+
+## Compiling
+
+### Using dune
+
+If you are using dune, simply run:
+
+> `dune build`
+
+### Without dune
+
+If you do not want to use dune, replace the `_CoqProject` file by its alternative `nodune_CoqProject`. You can then run the following commands:
+
+> `coq_makefile -f _CoqProject -o CoqMakefile`
+> ``make -f CoqMakefile`

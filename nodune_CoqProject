@@ -1,0 +1,6 @@
+-R theories epit
+
+theories/utils.v
+theories/setoids.v
+theories/cats.v
+theories/ex_types.v
