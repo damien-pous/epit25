@@ -76,7 +76,7 @@ Program Definition nat_alg: Algebra F_option :=
 (* Remains to prove its initiality. *)
 Fixpoint nat_iter {X} (f: option X -> X) (n: nat) :=
   match n with
-  | O => f None
+  | O   => f None
   | S n => f (Some (nat_iter f n))
   end.
 
@@ -160,12 +160,15 @@ Qed.
 
 End initial_times.
 
-(* Exercise? *)
+(*** Exercise
+  Define the initial algebra for the functor [λ X. 1 + A * X].
+*)
 Section initial_otimes.
 
 (** [1 + A×X] *)
 Definition F_otimes (A : Type): Functor := functor_comp F_option (F_times A). 
 
+(* BEGIN SOLUTION *)
 (* The pair (nil, cons) defines a list-algebra  *)
 Program Definition list_alg A: Algebra (F_otimes A) :=
   {| alg_car := list A;
@@ -188,13 +191,14 @@ Proof.
     -- apply (funext' (algE g) None).
     -- rewrite -IH. apply (funext' (algE g) (Some (a, _))). 
 Qed.
+(* END SOLUTION *)
 
 End initial_otimes.
 
 
 (** ** 3. Polynomial Functors
 
-  We have constructed and proven by hand two initial algebras. We can avoid some tedious work by capturing a large class at once: polynomial functors, corresponding intuitively to functors having the shape of a formal series [λX.Σ X^n].
+  We have constructed and proven by hand a couple of initial algebras. We can avoid some tedious work by capturing a large class at once: polynomial functors, corresponding intuitively to functors having the shape of a formal series [λX.Σ X^n].
   Conveniently, these functors admit a simple representation as *containers*. In the following section,
 we construct their initial algebras.
  *)
