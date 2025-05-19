@@ -92,18 +92,6 @@ Section s.
    apply (tower (inf_closed_leq (const x))); cbn.
    intros y xy. now rewrite H, xy. 
  Qed.
- 
- (** relativised tower induction *)
- Proposition ptower (Q P: X -> Prop):
-   Proper (leq ==> leq) Q ->
-   inf_closed P ->
-   (forall x: Chain, Q x -> P x -> P (b x)) ->
-   (forall x: Chain, Q x -> P x).
- Proof.
-   intros Qleq Pinf Pb. apply (tower (P:=fun x => Q x -> P x)). 
-   - now apply inf_closed_impl.
-   - intros x I H. cut (Q x); auto. now rewrite <-b_chain. 
- Qed.
 
  Definition compat f := f ° b <= b ° f.
  Lemma compat_chain (x: Chain): forall f, compat f -> f x <= x.
@@ -112,84 +100,4 @@ Section s.
    intros x fx. rewrite (Hf x). now apply b. 
  Qed.
 
- (** an instance of [gfp_chain] which is useful in some concrete use cases *)
- Lemma gfp_bchain (x: Chain): gfp <= b x.
- Proof. apply gfp_chain. Qed.
-
 End s.
-Global Opaque gfp. 
-
-(** if [f<=g] then [gfp f <= gfp g] *)
-#[export] Instance gfp_leq {X L}: Proper (leq ==> leq) (@gfp X L).
-Proof. intros f g fg. apply leq_gfp. rewrite <-fg. apply gfp_pfp. Qed.
-#[export] Instance gfp_weq {X L}: Proper (weq ==> weq) (@gfp X L) := op_leq_weq_1.
-
-(** if [f<=g] then the final chain of [f] is covered by the final chain of [g] *)
-Lemma C_leq {X} {L: CompleteLattice X} (f g: mon X) (fg: f <= g): forall x, C f x -> exists y, C g y /\ x <= y.
-Proof.
-  induction 1 as [x Cfx [y [Cgy xy]]| F FC _ ].
-  - exists (g y); split. now apply Cb. now rewrite xy; apply fg.
-  - exists (inf (fun y => C g y /\ exists x, F x /\ x <= y)); split.
-    apply Cinf. now intros y [Cgy _].
-    apply inf_spec; intros y [Cgy [x [Fx xy]]].
-    rewrite <-xy. now apply leq_infx.
-Qed.
-(** if [f==g] then the final chain of [f] is equivalent to that of [g] *)
-Lemma C_weq {X} {L: CompleteLattice X} (f g: mon X) (fg: f == g): forall x, C f x -> exists y, C g y /\ x == y.
-Proof.
-  induction 1 as [x Cfx [y [Cgy xy]]| F FC IH ].
-  - exists (g y); split. now apply Cb. now rewrite xy; apply fg.
-  - exists (inf (fun y => C g y /\ exists x, F x /\ x == y)); split.
-    apply Cinf. now intros y [Cgy _]. apply antisym. 
-    -- apply inf_spec; intros y [Cgy [x [Fx <-]]].
-       now apply leq_infx.
-    -- apply inf_spec; intros x Fx.
-       destruct (IH x Fx) as [y [Cgy xy]].
-       rewrite xy. apply leq_infx; split; trivial.
-       now exists x.
-Qed.
-
-
-(** * Symmetry arguments *)
-
-Section symmetry.
-  
- (** when the function [b] is derived from a function [s] and an involution, we get symmetry arguments *)
- Context {X} {L: CompleteLattice X} {i b s: mon X} {I: Involution i}.
-  
- Class Symmetrical := symmetrical: b == cap s (i ° s ° i).
- Context {H: Symmetrical}.
-
- (** [i] is compatible  *)
- Lemma invol_compat: i ° b <= b ° i.
- Proof.
-   rewrite symmetrical. 
-   rewrite o_mcap, 2compA, invol.
-   rewrite mcap_o, <-2compA, invol.
-   now rewrite capC. 
- Qed.
-
- (** thus fixes all elements in the chain *)
- Lemma invol_chain (x: Chain b): i (elem x) == elem x.
- Proof. apply invol_fixed, compat_chain, invol_compat. Qed.
-
- (** whence a simpler definition of [b] on the chain *)
- Lemma symmetrical_chain {x: Chain b}: b (elem x) == cap (s (elem x)) (i (s (elem x))).
- Proof.
-   rewrite (symmetrical (elem x)). apply cap_weq; trivial.
-   cbn. now rewrite invol_chain.
- Qed.
-
- (** reasoning by symmetry on plain post-fixpoints *)
- Proposition symmetric_pfp x: i x <= x -> x <= s x -> x <= b x.
- Proof.
-   intros ix sx. rewrite symmetrical. apply cap_spec. split. assumption.
-   cbn. apply switch. rewrite ix at 1. apply switch in ix. now rewrite <-ix. 
- Qed. 
-
-End symmetry.
-Arguments Symmetrical {_ _}.
-
-(** obvious instance of [Sym_from] (default) *)
-#[export] Instance symmetrical_from_def {X} {L: CompleteLattice X} {i s: mon X}: Symmetrical i (cap s (i ° s ° i)) s.
-Proof. now cbn. Qed.
