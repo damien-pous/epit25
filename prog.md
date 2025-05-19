@@ -67,4 +67,12 @@ Bring you computer: the course will be based on Rocq exercises.
   -- on l'avait déjà remarqué je crois, mais on ne reboucle pas sur 1. avec 4. car le foncteur naturel pour CCS n'a pas de coalgèbre finale :-/
   
   
-  
+# coding rules
+
+- intros plutôt que move, mais => autorisés
+- now->by
+- rewrite de ssreflect (je crois qu'on y est déjà)
+- pas de exact: apply: case:, seulement les version sans :
+
+- cbn ou simpl ? (sur certains passages je crains qu'on n'ait pas le choix)
+
