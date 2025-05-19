@@ -113,7 +113,7 @@ Module abstract_nat.
 
   (* And a recursion principle *)
   Definition pack_alg {X} (x : X) (s: X -> X): Algebra F_option :=
-    @alg _ _ X (fun ox => match ox with | None => x | Some y => s y end).
+    @alg TYPES _ X (fun ox => match ox with | None => x | Some y => s y end).
 
   Definition abstract_nat_iter {X} (x : X) (s: X -> X): nat -> X :=
     alg_bod (init_mor I (pack_alg x s)).
