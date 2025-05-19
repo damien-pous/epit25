@@ -108,7 +108,7 @@ Section example_categories.
   (* END SOLUTION *)
 
   (*** Exercise
-    Given a Type [A] and a preorder [R] on [A], define the category APRE whose objects are [A]s and morphisms x -> y if and only if x <= y.
+    Given a Type [A] and a preorder [R] on [A], define the category PRE whose objects are [A]s and morphisms x -> y if and only if x <= y.
     Hints:
     - The standard library provides the [PreOrder] structure.
     - Warning: you may have to define your own setoid.
