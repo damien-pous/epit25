@@ -54,7 +54,7 @@ Qed.
 Next Obligation.
   (* SOLUTION *)
   cbn; intros. apply funext=>S;  apply funext=>y.
-  apply propext; split; move=>[x [Hx ->]]; eauto.
+  apply propext; split; intros [x [Hx ->]]; eauto.
   destruct Hx as [? [? ->]]; eauto.
 Qed.
 
@@ -159,7 +159,7 @@ Section initial_times.
   Proof.
     esplit.
     - intros [X f]. esplit. by case.
-      apply funext. by move=>[?[]].
+      apply funext. by intros [?[]].
     - intros [X h] [g Hg]. apply funext; cbn. by case.
   Qed.
   (* END  SOLUTION *)
