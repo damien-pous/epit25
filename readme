@@ -6,6 +6,8 @@
 
 If you do not have a local installation of Rocq, you may access the development directly in your browser at the following address:
 
+https://x80.org/epit-2025/cats.html
+
 Many thanks to Emilio Jesús Gallego Arias or setting it up for us!
 
 ### Using Opam
