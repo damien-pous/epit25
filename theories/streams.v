@@ -64,7 +64,7 @@ Qed.
 Theorem final_stream_coalg: final stream_coalg.
 Proof.
   split.
-  - intro f. unshelve eexists.
+  - intro f. esplit.
     exists (stream_coiter (coalg_mor f)).
     -- apply stream_coiter_eqv.
     -- done. 
