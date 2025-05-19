@@ -86,27 +86,6 @@ Section example_categories.
   *)
     Fail Program Definition REL: Category := {|  |}.
 
-    (* BEGIN SOLUTION *)
-    (* {|
-      ob := Type;
-      hom A B := A -> B -> Prop;
-      id _ := @eq _;
-      comp _ _ _ R S := fun x y => exists z, S x z /\ R z y;
-    |}.
-  Next Obligation.
-    cbn. repeat intro. split; intros (z & ? & ?); exists z; split; firstorder.
-  Qed.
-  Next Obligation.
-    cbn; firstorder; subst; auto.
-  Qed.
-  Next Obligation.
-    cbn; firstorder; subst; auto.
-  Qed.
-  Next Obligation.
-    cbn; firstorder.
-  Qed. *)
-  (* END SOLUTION *)
-
   (*** Exercise
     Given a Type [A] and a preorder [R] on [A], define the category PRE whose objects are [A]s and morphisms x -> y if and only if x <= y.
     Hints:
@@ -117,49 +96,11 @@ Section example_categories.
   *)
     Fail Program Definition PRE {A R} (PR : @PreOrder A R) : Category := {| |}.
 
-  (* BEGIN SOLUTION *)
-    Definition TT {A} : A -> A -> Prop := fun _ _ => True.
-    Instance TTeq {A}: Equivalence (@TT A).
-    constructor; cbv; intuition.
-    Qed.
-
-    Definition P_setoid (P : Prop) : setoids.Setoid := Setoid.build P TT _.
-
-    Program Definition PRE {A R} (PR : @PreOrder A R) : Category
-   :=
-    {|
-      ob := A ;
-      hom x y := P_setoid (R x y) ;
-      id := PreOrder_Reflexive ;
-      comp x y z H H' := PreOrder_Transitive _ _ _ H' H
-    |}.
-
-  (* END SOLUTION *)
-
-  (*** Exercise 
+  (*** Exercise
     Define the [dual] category.
   *)
   Fail Program Definition dual (𝐂: Category): Category :=
     {| |}.
-
-  (* BEGIN SOLUTION *)
-  Program Definition dual (𝐂: Category): Category :=
-    {|
-      ob := ob 𝐂;
-      hom A B := 𝐂 B A;
-      id _ := id;
-      comp _ _ _ f g := g ∘ f;
-
-      idl := @idr 𝐂;
-      idr := @idl 𝐂;
-    |}.
-  Next Obligation.
-    repeat intro. by apply: comp_eqv.
-  Qed.
-  Next Obligation.
-    symmetry. apply compA.
-  Qed.
-  (* END SOLUTION *)
 
 End example_categories.
 
@@ -203,27 +144,15 @@ Section iso.
   Program Definition iso_trans A B C (i: A ≃ B) (j: B ≃ C): A ≃ C :=
     {| fwd := j^1 ∘ i^1; bwd := i^-1 ∘ j^-1 |}.
   Next Obligation.
-    (* SOLUTION *)
-    intros. transitivity (j^1 ∘ (i^1 ∘ i ^-1) ∘ j ^-1).
-    - by rewrite !compA. 
-    - rewrite isoE idl. by apply isoE.
-  Qed.
-  Next Obligation. 
-    (* SOLUTION *)
-    intros. transitivity (i ^-1 ∘ (j ^-1 ∘ j^1) ∘ i^1).
-    - by rewrite !compA. 
-    - rewrite isoE' idl. by apply isoE'.
-  Qed.
+    Admitted.
+  Next Obligation.
+    Admitted.
 
   Lemma epi_iso A B (i: A ≃ B): epi (i^1).
-  (* BEGIN SOLUTION *)
-  Proof. intros C g h E. by rewrite -(idl _ g) -(isoE i) -compA E compA isoE idl. Qed.
-  (* END SOLUTION *)
+  Admitted.
 
   Lemma mono_iso A B (i: A ≃ B): mono (i^1).
-  (* BEGIN SOLUTION *)  
-  Proof. intros C g h E. by rewrite -(idr _ g) -(isoE' i) compA E -compA isoE' idr. Qed.
-  (* END SOLUTION *)
+  Admitted.
 
 End iso.
 Notation "i ^1" := (fwd i) (at level 20).
@@ -249,16 +178,11 @@ Section universal.
   Proof.
     by rewrite (init_mor_unique i _ f) (init_mor_unique i _ g).
   Qed.
-          
+
   (** initial objects are all isomorphic *)
   Lemma initial_iso I I': initial I -> initial I' -> I ≃ I'.
   Proof.
-  (* SOLUTION *)  
-    intros i i'.
-    exists (i _) (i' _).
-    apply (init_unique i'). 
-    apply (init_unique i).
-  Qed.
+  Admitted.
 
   (** dually, an object [Z] is final if for every other object [X],
       there exists a unique morphism [X~>Z]
@@ -268,40 +192,18 @@ Section universal.
       fin_mor:> forall X, X ~> Z;
       fin_unique: forall X (f g: X ~> Z), f ≡ g;
     }.
-  
+
   Lemma final_unique Z Z': final Z -> final Z' -> Z ≃ Z'.
   Proof.
-  (* SOLUTION *)  
-    intros f f'.
-    exists (f' _) (f _).
-    apply (fin_unique f'). 
-    apply (fin_unique f).
-  Qed.
+  Admitted.
 
 End universal.
 
 Section example_initial_final.
 
-  (*** Exercise 
-    Define the initial and final objects in TYPES 
+  (*** Exercise
+    Define the initial and final objects in TYPES
   *)
-
-  (* BEGIN SOLUTION *)
-  (*
-  Definition initial_types : @initial TYPES False.
-  unshelve esplit. 
-  refine (fun _ abs => match abs : False with end).
-  intros.
-  apply funext; intros [].
-  Qed.
-
-  Definition final_types : @final TYPES unit.
-  unshelve esplit.
-  refine (fun _ _ => tt).
-  intros.
-  apply funext; intros a; destruct (f a); destruct (g a); reflexivity.
-  Qed. *)
-  (* END SOLUTION *)
 
 End example_initial_final.
 
@@ -351,12 +253,7 @@ Definition app_iso {𝐂 𝐃} (F: Functor 𝐂 𝐃) A B: A ≃ B -> F A ≃ F 
 Proof.
   (** note how we can also provide the two morphisms from within the proof *)
   intro i. exists (app F (i^1)) (app F (i^-1)).
-  (* SOLUTION *)  
-  by rewrite -app_comp isoE app_id.
-  by rewrite -app_comp isoE' app_id.
-Qed.
-
-
+Admitted.
 
 (** * 5. Algebras *)
 
@@ -384,17 +281,13 @@ Section algebra.
   Program Definition alg_id (A: Algebra): alg_hom A A :=
     {| alg_bod := id |}.
   Next Obligation.
-    (* SOLUTION *)
-    intro. by rewrite app_id idl idr.
-  Qed.
+  Admitted.
 
   Program Definition alg_comp (A B C: Algebra)
     (g: alg_hom B C) (f: alg_hom A B): alg_hom A C :=
     {| alg_bod := g ∘ f |}.
   Next Obligation.
-    (* SOLUTION *)
-    intros. by rewrite compA algE -compA algE app_comp compA.
-  Qed.
+  Admitted.
 
   (** We compare algebra homomorphisms via their underlying morphisms *)
   Canonical alg_hom_setoid (A B: Algebra) :=
@@ -403,19 +296,18 @@ Section algebra.
   (** F-algebras form a category *)
   Program Canonical Structure ALGEBRAS: Category :=
     {| ob := Algebra ; id := @alg_id ; comp := @alg_comp |}.
-  (* SOLUTION *)
-  Next Obligation. intros * f f' H g g' G. by apply comp_eqv. Qed.
-  Next Obligation. intros. apply idl. Qed.
-  Next Obligation. intros. apply idr. Qed.
-  Next Obligation. intros. apply compA. Qed.
+  Next Obligation. Admitted.
+  Next Obligation. Admitted.
+  Next Obligation. Admitted.
+  Next Obligation. Admitted.
 
   Section initial_algebra.
-    Context {I: Algebra} (H: initial I).    
+    Context {I: Algebra} (H: initial I).
 
     (** ** Lambek's lemma: initial F-algebras are fixpoints for F,
         i.e., their underlying morphism actually is an isomorphism *)
 
-    (** shorthand for this morphism *)      
+    (** shorthand for this morphism *)
     Let i: 𝐂 (F I) I := I.
 
     (** we construct an algebra structure on [F I] *)
@@ -426,23 +318,18 @@ Section algebra.
 
     (** it remains to prove that they are inverse of each other *)
     Lemma Lambek1: i ∘ j ≡ id.
-    Proof. 
-      (* SOLUTION *)
-      set i' := Build_alg_hom FI I i (eqv_refl _).
-      apply (init_unique H I (i' ∘ H FI) (alg_id _)).
-    Qed.
+    Proof.
+    Admitted.
     Lemma Lambek2: j ∘ i ≡ id.
     Proof.
-      (* SOLUTION *)
-      by rewrite (algE j) /= -app_comp Lambek1 app_id.
-    Qed.
+    Admitted.
 
     (** packing everything together *)
     Definition Lambek: F I ≃ I :=
       {| fwd := i;
          bwd := j;
          isoE := Lambek1;
-         isoE' := Lambek2 |}. 
+         isoE' := Lambek2 |}.
   End initial_algebra.
 
 End algebra.
@@ -474,17 +361,13 @@ Section coalgebra.
   Program Definition coalg_id (A: Coalgebra): coalg_hom A A :=
     {| coalg_bod := id |}.
   Next Obligation.
-    (* SOLUTION *)
-    intros. by rewrite app_id idl idr.
-  Qed.
+  Admitted.
 
   Program Definition coalg_comp (A B C: Coalgebra)
     (g: coalg_hom B C) (f: coalg_hom A B): coalg_hom A C :=
     {| coalg_bod := g ∘ f |}.
   Next Obligation.
-    (* SOLUTION *)
-    intros. by rewrite -compA coalgE compA coalgE app_comp compA.
-  Qed.
+  Admitted.
 
   (** We compare coalgebra homomorphisms via their underlying morphisms *)
   Canonical coalg_hom_setoid (A B: Coalgebra) :=
@@ -493,49 +376,20 @@ Section coalgebra.
   (** F-coalgebras form a category *)
   Program Canonical Structure COALGEBRAS: Category :=
     {| ob := Coalgebra ; id := @coalg_id ; comp := @coalg_comp |}.
-  (* SOLUTION *)
-  Next Obligation. intros* f f' H g g' G. by apply comp_eqv. Qed.
-  Next Obligation. intros. apply idl. Qed.
-  Next Obligation. intros. apply idr. Qed.
-  Next Obligation. intros. apply compA. Qed.
+  Next Obligation. Admitted.
+  Next Obligation. Admitted.
+  Next Obligation. Admitted.
+  Next Obligation. Admitted.
 
-  Section final_coalgebra.      
+  Section final_coalgebra.
     Context {Z: Coalgebra} (H: final Z).
-    
+
     (** ** CoLambek's lemma: final F-coalgebras are fixpoints for F,
         i.e., their underlying morphism actually is an isomorphism *)
 
     Lemma CoLambek: F Z ≃ Z.
     Abort.
-    
-    (* BEGIN SOLUTION *)
-    (** shorthand for this morphism *)      
-    Let z: 𝐂 Z (F Z) := Z.
 
-    (** we construct a coalgebra structure on [F Z] *)
-    Let FZ := coalg (F Z) (app F z). 
-
-    (** by finality, this yields the backward morphism *)
-    Let y: 𝐂 (F Z) Z := H FZ.
-
-    (** it remains to prove that they are inverse of each other *)
-    Lemma CoLambek1: y ∘ z ≡ id.
-    Proof. 
-      set z' := Build_coalg_hom Z FZ z (eqv_refl _).
-      apply (fin_unique H _ (H FZ ∘ z') (coalg_id _)).
-    Qed.
-    Lemma CoLambek2: z ∘ y ≡ id.
-    Proof.
-      by rewrite (coalgE y) /= -app_comp CoLambek1 app_id.
-    Qed.
-
-    (** packing everything together *)
-    Definition CoLambek: F Z ≃ Z :=
-      {| fwd := y;
-         bwd := z;
-         isoE := CoLambek1;
-         isoE' := CoLambek2 |}. 
-    (* END SOLUTION *)
   End final_coalgebra.
 
 End coalgebra.
