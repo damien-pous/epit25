@@ -227,9 +227,7 @@ Program Definition functor_id {𝐂}: Functor 𝐂 𝐂 :=
     app' A := A;
     app _ _ f := f;
   |}.
-Next Obligation.
-  by intros ???.
-Qed.
+Next Obligation. by intros. Qed.
 
 (** Composition of functors *)
 Program Definition functor_comp {𝐂 𝐃 𝐄} (G: Functor 𝐃 𝐄) (F: Functor 𝐂 𝐃): Functor 𝐂 𝐄 :=
@@ -238,7 +236,7 @@ Program Definition functor_comp {𝐂 𝐃 𝐄} (G: Functor 𝐃 𝐄) (F: Func
     app _ _ f := app G (app F f);
   |}.
 Next Obligation.
-  intros* f g fg. by do 2 apply app_eqv.
+  intros* f g fg. by apply app_eqv, app_eqv.
 Qed.
 Next Obligation. cbn; intros. by rewrite 2!app_id. Qed.
 Next Obligation. cbn; intros. by rewrite 2!app_comp. Qed.
@@ -271,26 +269,26 @@ Section algebra.
     }.
 
   (** F-algebra homomorphisms: morphisms making the obvious square commute *)
-  Record alg_hom (A B: Algebra) :=
+  Record Alg_hom (A B: Algebra) := alg_hom
     {
       alg_bod:> A ~> B;
       algE: alg_bod ∘ A ≡ B ∘ app F alg_bod
     }.
   Arguments alg_bod {_ _}.
 
-  Program Definition alg_id (A: Algebra): alg_hom A A :=
+  Program Definition alg_id (A: Algebra): Alg_hom A A :=
     {| alg_bod := id |}.
   Next Obligation.
   Admitted.
 
   Program Definition alg_comp (A B C: Algebra)
-    (g: alg_hom B C) (f: alg_hom A B): alg_hom A C :=
+    (g: Alg_hom B C) (f: Alg_hom A B): Alg_hom A C :=
     {| alg_bod := g ∘ f |}.
   Next Obligation.
   Admitted.
 
   (** We compare algebra homomorphisms via their underlying morphisms *)
-  Canonical alg_hom_setoid (A B: Algebra) :=
+  Canonical Alg_hom_setoid (A B: Algebra) :=
     kern_setoid _ (@alg_bod A B).
 
   (** F-algebras form a category *)
@@ -351,26 +349,26 @@ Section coalgebra.
     }.
 
   (** F-coalgebra homomorphisms: morphisms making the obvious square commute *)
-  Record coalg_hom (A B: Coalgebra) :=
+  Record Coalg_hom (A B: Coalgebra) := coalg_hom
     {
       coalg_bod:> A ~> B;
       coalgE: B ∘ coalg_bod ≡ app F coalg_bod ∘ A
     }.
   Arguments coalg_bod {_ _}.
 
-  Program Definition coalg_id (A: Coalgebra): coalg_hom A A :=
+  Program Definition coalg_id (A: Coalgebra): Coalg_hom A A :=
     {| coalg_bod := id |}.
   Next Obligation.
   Admitted.
 
   Program Definition coalg_comp (A B C: Coalgebra)
-    (g: coalg_hom B C) (f: coalg_hom A B): coalg_hom A C :=
+    (g: Coalg_hom B C) (f: Coalg_hom A B): Coalg_hom A C :=
     {| coalg_bod := g ∘ f |}.
   Next Obligation.
   Admitted.
 
   (** We compare coalgebra homomorphisms via their underlying morphisms *)
-  Canonical coalg_hom_setoid (A B: Coalgebra) :=
+  Canonical Coalg_hom_setoid (A B: Coalgebra) :=
     kern_setoid _ (@coalg_bod A B).
 
   (** F-coalgebras form a category *)

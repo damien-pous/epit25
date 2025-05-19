@@ -70,9 +70,13 @@ Bring you computer: the course will be based on Rocq exercises.
 # coding rules
 
 - intros plutôt que move, mais => autorisés
+- elim->induction
 - now->by
 - rewrite de ssreflect (je crois qu'on y est déjà)
 - pas de exact: apply: case:, seulement les version sans :
 
-- cbn ou simpl ? (sur certains passages je crains qu'on n'ait pas le choix)
+- cbn plutôt que simpl si possible 
+  (on peut tricher avec =>/= qui fait simpl, au besoin)
+  
+
 

@@ -29,14 +29,14 @@ Qed.
 (** option *)
 Program Canonical F_option: Functor :=
   {| app' := option; app := Option.map |}.
-Next Obligation. Admitted.
-Next Obligation. Admitted.
+Next Obligation. (* SOLUTION *) intros. by apply funext=>[[|]]. Qed.
+Next Obligation. (* SOLUTION *) intros. by apply funext=>[[|]]. Qed.
 
 (** list *)
 Program Definition F_list: Functor :=
   {| app' := list; app := List.map |}.
-Next Obligation. Admitted.
-Next Obligation. Admitted.
+Next Obligation. (* SOLUTION *) intros. apply funext=>l. induction l; cbn; by f_equal. Qed.
+Next Obligation. (* SOLUTION *) intros. apply funext=>l. induction l; cbn; by f_equal. Qed.
 
 (** X^A *)
 Program Definition F_exp A: Functor :=
@@ -46,9 +46,17 @@ Program Definition F_exp A: Functor :=
 Program Definition F_pow: Functor :=
   {| app' X := (X -> Prop); app X Y f S := fun y => exists x, S x /\ y = f x |}.
 Next Obligation.
-Admitted.
+  (* SOLUTION *)
+  cbn; intros. apply funext=>S;  apply funext=>y.
+  apply propext; split=>H; eauto.
+  by destruct H as [? [Sy <-]].
+Qed.
 Next Obligation.
-Admitted.
+  (* SOLUTION *)
+  cbn; intros. apply funext=>S;  apply funext=>y.
+  apply propext; split; move=>[x [Hx ->]]; eauto.
+  destruct Hx as [? [? ->]]; eauto.
+Qed.
 
 
 (** * 2. Examples of Initial algebras on TYPES *)
@@ -76,11 +84,11 @@ Fixpoint nat_iter {X} (f: option X -> X) (n: nat) :=
 
 Lemma init_nat_alg: initial nat_alg.
 Proof.
-  unshelve eexists.
-  - intro f. exists (nat_iter (alg_mor f)).
-    by apply funext; case.
-  - intros X g. apply funext. simpl. intro n.
-    induction n as [|n IH]; simpl.
+  esplit. 
+  - intro f. exists (nat_iter (alg_mor f)). 
+    by apply funext; case. 
+  - intros X g. apply funext=>/=n. 
+    induction n as [|n IH]; cbn.
     -- apply (funext' (algE g) None).
     -- rewrite -IH. apply (funext' (algE g) (Some _)).
 Qed.
@@ -140,6 +148,22 @@ Section initial_times.
      Define the initial algebra of the [F_times A == λX. AxX] functor
  *)
 
+  (* BEGIN SOLUTION *)
+  Variant empty := .
+
+  Program Definition empty_alg A: Algebra (F_times A) :=
+    {| alg_car := empty;
+      alg_mor x := match x.2 with end |}.
+
+  Lemma init_empty_alg A: initial (empty_alg A).
+  Proof.
+    esplit.
+    - intro f. esplit. by case.
+      apply funext. by move=>[?[]].
+    - intros X g. apply funext; cbn. by case.
+  Qed.
+  (* END  SOLUTION *)
+
 End initial_times.
 
 Section initial_otimes.
@@ -150,6 +174,31 @@ Section initial_otimes.
 
   (** [1 + A×X] *)
   Definition F_otimes (A : Type): Functor := functor_comp F_option (F_times A).
+
+  (* BEGIN SOLUTION *)
+  (* The pair (nil, cons) defines a list-algebra  *)
+  Program Definition list_alg A: Algebra (F_otimes A) :=
+    {| alg_car := list A;
+      alg_mor := fun x => match x with | None => nil | Some (a,x) => a :: x end |}.
+
+  (* Remains to prove its initiality. *)
+  Fixpoint list_iter {A X} (f: option (A × X) -> X) (l: list A) :=
+    match l with
+    | nil    => f None
+    | a :: l => f (Some (a, (list_iter f l)))
+    end.
+
+   Lemma init_list_alg A: initial (list_alg A).
+   Proof.
+     esplit. 
+     - intro f. exists (list_iter (alg_mor f)). 
+       apply funext. by case; [case |].
+     - intros X g. apply funext=>/=l.
+       induction l as [|a l IH]; cbn.
+       -- apply (funext' (algE g) None).
+       -- rewrite -IH. apply (funext' (algE g) (Some (a, _))). 
+   Qed.
+  (* END SOLUTION *)
 
 End initial_otimes.
 
@@ -199,37 +248,31 @@ Section containers.
   Notation cA := cont.(A).
   Notation cB := cont.(B).
 
-  Inductive W_sort : Type :=
-  | sup0 (a : cA) (f : cB a -> W_sort) : W_sort.
+  Inductive W := node (a : cA) (g : cB a -> W).
 
-  Program Definition w_alg : Algebra (apply cont) :=
-    {| alg_car := W_sort;
-       alg_mor x := (sup0 (projT1 x) (projT2 x)) |}.
+  Program Definition W_alg : Algebra (apply cont) :=
+    {| alg_car := W;
+       alg_mor x := (node (projT1 x) (projT2 x)) |}.
 
-  (* And indeed, [w_alg] is initial *)
-  Lemma init_w_alg : initial w_alg.
+  Fixpoint W_iter {X} (f: apply cont X -> X) (w: W) :=
+    match w with
+    | node a c => f (existT _ a (fun i => W_iter f (c i)))
+    end.
+  
+  (* And indeed, [W_alg] is initial *)
+  Lemma init_W_alg : initial W_alg.
   Proof.
-    unshelve esplit.
-    - intros [X f].
-      unshelve eexists.
-      elim. intros a _ c.
-      cbn in *.
-      apply f.
-      exists a. exact c.
-      apply funext.
-      intros [].
-      cbn; f_equal.
-    - simpl.
-      intros X f.
-      apply funext.
-      elim.
-      intros a s ih.
-      setoid_rewrite (f_equal (fun f => f (existT (fun a : cA => cB a -> W_sort) a s)) (algE f)).
-      simpl.
-      f_equal.
-      f_equal.
-      apply funext.
-      apply ih.
+    esplit.
+    - intros [X f]. exists (W_iter f). 
+      by apply funext=>[]. 
+    - cbn.
+      intros X [f Hf].
+      apply funext=>w.
+      induction w as [a c IH]; cbn.
+      setoid_rewrite (funext' Hf (existT _ a c)). 
+      cbn.
+      f_equal. f_equal.
+      apply funext. apply IH.
   Qed.
 
 End containers.
@@ -257,10 +300,10 @@ CoFixpoint conat_coiter {X} (f: X -> option X) (x: X): conat :=
 
 Lemma final_conat_coalg: final conat_coalg.
 Proof.
-  unshelve eexists.
+  esplit.
   - intro f. exists (conat_coiter (coalg_mor f)).
-    apply funext=>x. simpl. by destruct (coalg_mor f x).
-  - simpl. intros X f g.
+    apply funext=>x/=. by destruct (coalg_mor f x). 
+  - intros X f g. apply funext=>x. 
     (* not provable in Rocq *)
 Abort.
 
@@ -279,7 +322,7 @@ CoFixpoint stream_coiter {A X} (f: X -> A×X) x :=
 
 Lemma final_stream_coalg A: final (stream_coalg A).
 Proof.
-  unshelve esplit.
+  esplit.
   - intro f. exists (stream_coiter (coalg_mor f)).
     apply funext=>x. cbn. by destruct (coalg_mor f x).
   - intros X f g.
