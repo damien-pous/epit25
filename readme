@@ -34,3 +34,11 @@ We only depend on the `coq-coinduction` library, that can be obtained with
 If you want to use vscode as your editor, you will need to additionally install the vscoq server:
 
 > `opam install vscoq-language-server`
+
+You then need to set the `VScoq: Path` variable to point to your `coqtop`, i.e., something like `/Users/yourusername/.opam/yourswitchname/bin/vscoqtop`
+
+#### rocqide
+
+Alternative ide.
+
+> `opam install rocqide`

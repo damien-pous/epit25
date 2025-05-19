@@ -535,7 +535,7 @@ Section coalgebra.
          bwd := z;
          isoE := CoLambek1;
          isoE' := CoLambek2 |}. 
-    (* BEGIN SOLUTION *)
+    (* END SOLUTION *)
   End final_coalgebra.
 
 End coalgebra.
