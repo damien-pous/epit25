@@ -19,30 +19,30 @@ Notation Functor := (Functor TYPES TYPES).
 
 (** * 1. Examples of functors *)
 
-(** A×X *)
+(** ** The [A×X] functor *)
 Program Definition F_times A: Functor :=
   {| app' X := A × X; app X Y f ax := (ax.1,f ax.2) |}.
 Next Obligation.
   intros. by apply funext=>[[]].
 Qed.
 
-(** option *)
+(** ** The option functor *)
 Program Canonical F_option: Functor :=
   {| app' := option; app := Option.map |}.
 Next Obligation. (* SOLUTION *) intros. by apply funext=>[[|]]. Qed.
 Next Obligation. (* SOLUTION *) intros. by apply funext=>[[|]]. Qed.
 
-(** list *)
+(** ** The list functor *)
 Program Definition F_list: Functor :=
   {| app' := list; app := List.map |}.
 Next Obligation. (* SOLUTION *) intros. apply funext=>l. induction l; cbn; by f_equal. Qed.
 Next Obligation. (* SOLUTION *) intros. apply funext=>l. induction l; cbn; by f_equal. Qed.
 
-(** X^A *)
+(** ** The [X^A] functor *)
 Program Definition F_exp A: Functor :=
   {| app' X := A -> X; app X Y f g := comp f g |}.
 
-(** powerset *)
+(** ** The powerset functor *)
 Program Definition F_pow: Functor :=
   {| app' X := (X -> Prop); app X Y f S := fun y => exists x, S x /\ y = f x |}.
 Next Obligation.
@@ -64,18 +64,19 @@ Qed.
 (** ** natural unary numbers form the initial algebra of the [option] functor *)
 
 Section initial_option.
-(* This is the exact definition you can find in the standard library *)
+
+(** This is the exact definition you can find in the standard library *)
 Inductive nat := O | S (n: nat).
 
 Definition nat_pack (n: option nat): nat :=
   match n with Some n => S n | None => O end.
 
-(* The pair (O, S) defines an option-algebra  *)
+(** The pair (O, S) defines an option-algebra  *)
 Program Definition nat_alg: Algebra F_option :=
   {| alg_car := nat;
      alg_mor := nat_pack |}.
 
-(* Remains to prove its initiality. *)
+(** Remains to prove its initiality. *)
 Fixpoint nat_iter {X} (f: option X -> X) (n: nat) :=
   match n with
   | O   => f None
@@ -95,25 +96,25 @@ Qed.
 
 End initial_option.
 
-(* Having established [init_nat_alg], we can see this result less as a fact about [nat] itself than about [option], proving it admits an initial algebra.
+(** Having established [init_nat_alg], we can see this result less as a fact about [nat] itself than about [option], proving it admits an initial algebra.
   With this knowledge, we can work over an abstract view of [nat].
 *)
 Module abstract_nat.
   Parameter A: Algebra F_option.
   Parameter I: initial A.
-  (* We define [nat] as the carrier of the initial algebra *)
+  (** We define [nat] as the carrier of the initial algebra *)
   Definition nat := alg_car A.
 
-  (* We get a constructor and a destructor by Lambek *)
+  (** We get a constructor and a destructor by Lambek *)
   Definition i: F_option nat ≃ nat := Lambek I.
   Definition c: option nat -> nat  := fwd i.
   Definition d: nat -> option nat  := bwd i.
 
-  (* 0 and successor *)
+  (** We derive 0 and successor from the constructor [c] *)
   Definition O: nat := c None.
   Definition S (n: nat): nat := c (Some n).
 
-  (* And a recursion principle *)
+  (** And a recursion principle *)
   Definition pack_alg {X} (x : X) (s: X -> X): Algebra F_option :=
     @alg TYPES _ X (fun ox => match ox with | None => x | Some y => s y end).
 
@@ -144,7 +145,7 @@ End abstract_nat.
 
 Section initial_times.
 
-(*** Exercise
+(** ** Exercise
      Define the initial algebra of the [F_times A == λX. AxX] functor
  *)
 
@@ -168,20 +169,20 @@ End initial_times.
 
 Section initial_otimes.
 
-(*** Exercise
+(** ** Exercise
      Define the initial algebra for the functor [λ X. 1 + A * X].
  *)
 
-  (** [1 + A×X] *)
+  (** The [1 + A×X] functor *)
   Definition F_otimes (A : Type): Functor := functor_comp F_option (F_times A).
 
   (* BEGIN SOLUTION *)
-  (* The pair (nil, cons) defines a list-algebra  *)
+  (** The pair (nil, cons) defines a list-algebra  *)
   Program Definition list_alg A: Algebra (F_otimes A) :=
     {| alg_car := list A;
       alg_mor := fun x => match x with | None => nil | Some (a,x) => a :: x end |}.
 
-  (* Remains to prove its initiality. *)
+  (** Remains to prove its initiality. *)
   Fixpoint list_iter {A X} (f: option (A × X) -> X) (l: list A) :=
     match l with
     | nil    => f None
@@ -203,7 +204,7 @@ Section initial_otimes.
 End initial_otimes.
 
 
-(** ** 3. Polynomial Functors
+(** * 3. Polynomial Functors
 
   We have constructed and proven by hand a couple of initial algebras. We can avoid some tedious work by capturing a large class at once: polynomial functors, corresponding intuitively to functors having the shape of a formal series [λX.Σ X^n].
   Conveniently, these functors admit a simple representation as *containers*. In the following section,
@@ -218,7 +219,7 @@ Section containers.
       B: A -> Type
     }.
 
-  (* Containers represent functors: intuitively, each element of [A] is a different shape,
+  (** Containers represent functors: intuitively, each element of [A] is a different shape,
      and given a shape [a], then the position [B a] indicates how it should be filled with data.
    *)
   Program Definition apply (cont : container) : Functor :=
@@ -232,15 +233,15 @@ Section containers.
     cbn; f_equal.
   Qed.
 
-  (* A few examples *)
-  (* λX . X * X : only one shape, and two piece of data to store *)
+  (** ** A few examples *)
+  (** λX . X * X : only one shape, and two piece of data to store *)
   Example container_pair   : container := {| A := unit ; B := fun _ => bool |}.
-  (* option : two shapes, with respectively 0 and 1 piece of data to store *)
+  (** option : two shapes, with respectively 0 and 1 piece of data to store *)
   Example container_option : container := {| A := bool ; B := fun b => if b then unit else False |}.
-  (* list : a shape per possible length, and the corresponding number of data to store *)
+  (** list : a shape per possible length, and the corresponding number of data to store *)
   Example container_list   : container := {| A := Datatypes.nat ; B := fun n => Fin.t n |}.
 
-  (** W-types: an explicit construction of the initial algebra of polynomial functors.
+  (** ** W-types: an explicit construction of the initial algebra of polynomial functors.
       The construction is quite simple: finite trees whose nodes are labelled by a shape,
       and children determined by the corresponding position.
    *)
@@ -259,7 +260,7 @@ Section containers.
     | node a c => f (existT _ a (fun i => W_iter f (c i)))
     end.
   
-  (* And indeed, [W_alg] is initial *)
+  (** And indeed, [W_alg] is initial *)
   Lemma init_W_alg : initial W_alg.
   Proof.
     esplit.
@@ -304,7 +305,7 @@ Proof.
   - intros [X f]. exists (conat_coiter f).
     apply funext=>x/=. by destruct (f x). 
   - intros [X h] [f Hf] [g Hg]. apply funext=>x. cbn in *. 
-    (* not provable in Rocq *)
+    (** not provable in Rocq *)
 Abort.
 
 
@@ -325,6 +326,6 @@ Proof.
   esplit.
   - intros [X f]. exists (stream_coiter f).
     apply funext=>x. cbn. by destruct (f x).
-  - intros [X h] [f Hf] [g Hg]; cbn in *.
-    (* not provable in Rocq *)
+  - intros [X h] [f Hf] [g Hg]; cbn in *. apply funext. intros ?.
+    (** not provable in Rocq *)
 Abort.
