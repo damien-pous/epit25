@@ -29,14 +29,14 @@ Qed.
 (** ** The option functor *)
 Program Canonical F_option: Functor :=
   {| app' := option; app := Option.map |}.
-Next Obligation. (* SOLUTION *) intros. by apply funext=>[[|]]. Qed.
-Next Obligation. (* SOLUTION *) intros. by apply funext=>[[|]]. Qed.
+Next Obligation. Admitted.
+Next Obligation. Admitted.
 
 (** ** The list functor *)
 Program Definition F_list: Functor :=
   {| app' := list; app := List.map |}.
-Next Obligation. (* SOLUTION *) intros. apply funext=>l. induction l; cbn; by f_equal. Qed.
-Next Obligation. (* SOLUTION *) intros. apply funext=>l. induction l; cbn; by f_equal. Qed.
+Next Obligation. Admitted.
+Next Obligation. Admitted.
 
 (** ** The [X^A] functor *)
 Program Definition F_exp A: Functor :=
@@ -46,17 +46,9 @@ Program Definition F_exp A: Functor :=
 Program Definition F_pow: Functor :=
   {| app' X := (X -> Prop); app X Y f S := fun y => exists x, S x /\ y = f x |}.
 Next Obligation.
-  (* SOLUTION *)
-  cbn; intros. apply funext=>S;  apply funext=>y.
-  apply propext; split=>H; eauto.
-  by destruct H as [? [Sy <-]].
-Qed.
+Admitted.
 Next Obligation.
-  (* SOLUTION *)
-  cbn; intros. apply funext=>S;  apply funext=>y.
-  apply propext; split; intros [x [Hx ->]]; eauto.
-  destruct Hx as [? [? ->]]; eauto.
-Qed.
+Admitted.
 
 
 (** * 2. Examples of Initial algebras on TYPES *)
@@ -149,21 +141,6 @@ Section initial_times.
      Define the initial algebra of the [F_times A == λX. AxX] functor
  *)
 
-  (* BEGIN SOLUTION *)
-  Variant empty := .
-
-  Program Definition empty_alg A: Algebra (F_times A) :=
-    {| alg_car := empty;
-      alg_mor x := match x.2 with end |}.
-
-  Lemma init_empty_alg A: initial (empty_alg A).
-  Proof.
-    esplit.
-    - intros [X f]. esplit. by case.
-      apply funext. by intros [?[]].
-    - intros [X h] [g Hg]. apply funext; cbn. by case.
-  Qed.
-  (* END  SOLUTION *)
 
 End initial_times.
 
@@ -175,31 +152,6 @@ Section initial_otimes.
 
   (** The [1 + A×X] functor *)
   Definition F_otimes (A : Type): Functor := functor_comp F_option (F_times A).
-
-  (* BEGIN SOLUTION *)
-  (** The pair (nil, cons) defines a list-algebra  *)
-  Program Definition list_alg A: Algebra (F_otimes A) :=
-    {| alg_car := list A;
-      alg_mor := fun x => match x with | None => nil | Some (a,x) => a :: x end |}.
-
-  (** Remains to prove its initiality. *)
-  Fixpoint list_iter {A X} (f: option (A × X) -> X) (l: list A) :=
-    match l with
-    | nil    => f None
-    | a :: l => f (Some (a, (list_iter f l)))
-    end.
-
-   Lemma init_list_alg A: initial (list_alg A).
-   Proof.
-     esplit. 
-     - intros [X f]. exists (list_iter f). 
-       apply funext. by case; [case |].
-     - intros [X h] [g Hg]. apply funext=>/=l.
-       induction l as [|a l IH]; cbn.
-       -- apply (funext' Hg None).
-       -- rewrite -IH. apply (funext' Hg (Some (a, _))). 
-   Qed.
-  (* END SOLUTION *)
 
 End initial_otimes.
 
