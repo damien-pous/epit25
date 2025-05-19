@@ -82,10 +82,12 @@ Section example_categories.
       comp _ _ _ f g := fun x => f (g x);
     |}.
 
+  (*** Exercise
+    Define the category REL, whose objects are [Type]s and morphisms are relations.
+  *)
+    Fail Program Definition REL: Category := {|  |}.
 
-  (* TODO: other examples. Example for the students to define *)
-  (** TODO Exercise ? Define the category of relations of Types *)
-  Fail Program Definition REL: Category := {|  |}.
+    (* BEGIN SOLUTION *)
     (* {|
       ob := Type;
       hom A B := A -> B -> Prop;
@@ -104,8 +106,44 @@ Section example_categories.
   Next Obligation.
     cbn; firstorder.
   Qed. *)
+  (* END SOLUTION *)
 
-  (** dual category (SKIP??) *)
+  (*** Exercise
+    Given a Type [A] and a preorder [R] on [A], define the category APRE whose objects are [A]s and morphisms x -> y if and only if x <= y.
+    Hints:
+    - The standard library provides the [PreOrder] structure.
+    - Warning: you may have to define your own setoid.
+      If so, you can do so using the following constructor:
+        Setoid.build : ∀ (sort : Type) (eqv : relation sort), Equivalence eqv → Setoid
+  *)
+    Fail Program Definition PRE {A R} (PR : @PreOrder A R) : Category := {| |}.
+
+  (* BEGIN SOLUTION *)
+    Definition TT {A} : A -> A -> Prop := fun _ _ => True.
+    Instance TTeq {A}: Equivalence (@TT A).
+    constructor; cbv; intuition.
+    Qed.
+
+    Definition P_setoid (P : Prop) : setoids.Setoid := Setoid.build P TT _.
+
+    Program Definition PRE {A R} (PR : @PreOrder A R) : Category
+   :=
+    {|
+      ob := A ;
+      hom x y := P_setoid (R x y) ;
+      id := PreOrder_Reflexive ;
+      comp x y z H H' := PreOrder_Transitive _ _ _ H' H
+    |}.
+
+  (* END SOLUTION *)
+
+  (*** Exercise 
+    Define the [dual] category.
+  *)
+  Fail Program Definition dual (𝐂: Category): Category :=
+    {| |}.
+
+  (* BEGIN SOLUTION *)
   Program Definition dual (𝐂: Category): Category :=
     {|
       ob := ob 𝐂;
@@ -122,6 +160,7 @@ Section example_categories.
   Next Obligation.
     symmetry. apply compA.
   Qed.
+  (* END SOLUTION *)
 
 End example_categories.
 
@@ -143,12 +182,12 @@ Section iso.
     { fwd: A ~> B;
       bwd: B ~> A;
 
-      isoE: fwd ∘ bwd ≡ id;
+      isoE : fwd ∘ bwd ≡ id;
       isoE': bwd ∘ fwd ≡ id
     }.
   Arguments fwd {_ _}.
   Arguments bwd {_ _}.
-  Notation "i ^1" := (fwd i) (at level 20).
+  Notation "i ^1"  := (fwd i) (at level 20).
   Notation "i ^-1" := (bwd i) (at level 20).
   Infix "≃" := iso (at level 70).
 
@@ -226,7 +265,11 @@ End universal.
 
 Section example_initial_final.
 
-  (* Exercise (?) Define the initial and final objects in TYPES *)
+  (*** Exercise 
+    Define the initial and final objects in TYPES 
+  *)
+
+  (* BEGIN SOLUTION *)
   (*
   Definition initial_types : @initial TYPES False.
   unshelve esplit. 
@@ -241,6 +284,7 @@ Section example_initial_final.
   intros.
   apply funext; intros a; destruct (f a); destruct (g a); reflexivity.
   Qed. *)
+  (* END SOLUTION *)
 
 End example_initial_final.
 
@@ -251,7 +295,7 @@ End example_initial_final.
 Record Functor (𝐂 𝐃: Category) :=
   {
     app':> 𝐂 -> 𝐃;
-    app: forall {A B}, 𝐂 A B -> 𝐃 (app' A) (app' B);
+    app : forall {A B}, 𝐂 A B -> 𝐃 (app' A) (app' B);
 
     app_eqv:: forall {A B}, Proper (eqv ==> eqv) (@app A B);
     app_id: forall {A}, app (id: A ~> A) ≡ id;
