@@ -54,7 +54,6 @@ Arguments comp {_ _ _ _}.
 Notation "g ∘ f" := (comp g f).
 Infix "∘[ 𝐂 ] " := (@comp 𝐂 _ _ _) (at level 40, left associativity, only parsing).
 Notation "A ~> B" := (hom _ A B) (at level 99, B at level 200, format "A  ~>  B").
-Notation "A ~>[ 𝐂 ] B" := (hom 𝐂 A B) (at level 99, B at level 200, only parsing).
 
 (* We can already toy with the structure by defining a few categories.
    Note that [Program] allows you to only fill in explicitely the data in the definition of the structure.
@@ -191,24 +190,40 @@ Section iso.
   Notation "i ^-1" := (bwd i) (at level 20).
   Infix "≃" := iso (at level 70).
 
-  Definition iso_refl A: A ≃ A.
-    exists id id; apply idl.
-  Defined.
+  Program Definition iso_refl A: A ≃ A :=
+    {| fwd := id; bwd := id |}.
+  Next Obligation. intro. apply idl. Qed.
+  Next Obligation. intro. apply idl. Qed.
 
-  Definition iso_sym A B: A ≃ B -> B ≃ A.
-    intro i. exists (i^-1) (i^1). apply isoE'. apply isoE.
-  Defined.
+  Program Definition iso_sym A B (i: A ≃ B): B ≃ A :=
+    {| fwd := i^-1; bwd := i^1 |}.
+  Next Obligation. apply isoE'. Qed.
+  Next Obligation. apply isoE. Qed.
 
-  Definition iso_trans A B D: A ≃ B -> B ≃ D -> A ≃ D.
-    intros i j. exists (j^1 ∘ i^1) (i^-1 ∘ j^-1).
-    transitivity (j^1 ∘ (i^1 ∘ i ^-1) ∘ j ^-1). by rewrite !compA. rewrite isoE idl. by apply isoE.
-    transitivity (i ^-1 ∘ (j ^-1 ∘ j^1) ∘ i^1). by rewrite !compA. rewrite isoE' idl. by apply isoE'.
-  Defined.
+  Program Definition iso_trans A B C (i: A ≃ B) (j: B ≃ C): A ≃ C :=
+    {| fwd := j^1 ∘ i^1; bwd := i^-1 ∘ j^-1 |}.
+  Next Obligation.
+    (* SOLUTION *)
+    intros. transitivity (j^1 ∘ (i^1 ∘ i ^-1) ∘ j ^-1).
+    - by rewrite !compA. 
+    - rewrite isoE idl. by apply isoE.
+  Qed.
+  Next Obligation. 
+    (* SOLUTION *)
+    intros. transitivity (i ^-1 ∘ (j ^-1 ∘ j^1) ∘ i^1).
+    - by rewrite !compA. 
+    - rewrite isoE' idl. by apply isoE'.
+  Qed.
 
   Lemma epi_iso A B (i: A ≃ B): epi (i^1).
+  (* BEGIN SOLUTION *)
   Proof. intros C g h E. by rewrite -(idl _ g) -(isoE i) -compA E compA isoE idl. Qed.
+  (* END SOLUTION *)
+
   Lemma mono_iso A B (i: A ≃ B): mono (i^1).
+  (* BEGIN SOLUTION *)  
   Proof. intros C g h E. by rewrite -(idr _ g) -(isoE' i) compA E -compA isoE' idr. Qed.
+  (* END SOLUTION *)
 
 End iso.
 Notation "i ^1" := (fwd i) (at level 20).
@@ -238,6 +253,7 @@ Section universal.
   (** initial objects are all isomorphic *)
   Lemma initial_iso I I': initial I -> initial I' -> I ≃ I'.
   Proof.
+  (* SOLUTION *)  
     intros i i'.
     exists (i _) (i' _).
     apply (init_unique i'). 
@@ -255,6 +271,7 @@ Section universal.
   
   Lemma final_unique Z Z': final Z -> final Z' -> Z ≃ Z'.
   Proof.
+  (* SOLUTION *)  
     intros f f'.
     exists (f' _) (f _).
     apply (fin_unique f'). 
@@ -302,7 +319,7 @@ Record Functor (𝐂 𝐃: Category) :=
     app_comp: forall {U V W} (f: U ~> V) (g: V ~> W), app (g ∘ f) ≡ app g ∘ app f;
   }.
 
-(* The identity functor *)
+(** The identity functor *)
 Program Definition functor_id {𝐂}: Functor 𝐂 𝐂 :=
   {|
     app' A := A;
@@ -312,7 +329,7 @@ Next Obligation.
   by intros ???.
 Qed.
 
-(* Composition of functors *)
+(** Composition of functors *)
 Program Definition functor_comp {𝐂 𝐃 𝐄} (G: Functor 𝐃 𝐄) (F: Functor 𝐂 𝐃): Functor 𝐂 𝐄 :=
   {|
     app' A := G (F A);
@@ -324,7 +341,7 @@ Qed.
 Next Obligation. cbn; intros. by rewrite 2!app_id. Qed.
 Next Obligation. cbn; intros. by rewrite 2!app_comp. Qed.
 
-(* Constant functor *)
+(** Constant functor *)
 Program Definition functor_constant {𝐂 𝐃: Category} (A: 𝐃): Functor 𝐂 𝐃:=
   {| app' _ := A; app _ _ _ := id |}.
 Next Obligation. by cbn; intros. Qed.
@@ -332,7 +349,9 @@ Next Obligation. cbn; intros. by rewrite idl. Qed.
 
 Definition app_iso {𝐂 𝐃} (F: Functor 𝐂 𝐃) A B: A ≃ B -> F A ≃ F B.
 Proof.
+  (** note how we can also provide the two morphisms from within the proof *)
   intro i. exists (app F (i^1)) (app F (i^-1)).
+  (* SOLUTION *)  
   by rewrite -app_comp isoE app_id.
   by rewrite -app_comp isoE' app_id.
 Qed.
@@ -365,6 +384,7 @@ Section algebra.
   Program Definition alg_id (A: Algebra): alg_hom A A :=
     {| alg_bod := id |}.
   Next Obligation.
+    (* SOLUTION *)
     intro. by rewrite app_id idl idr.
   Qed.
 
@@ -372,6 +392,7 @@ Section algebra.
     (g: alg_hom B C) (f: alg_hom A B): alg_hom A C :=
     {| alg_bod := g ∘ f |}.
   Next Obligation.
+    (* SOLUTION *)
     intros. by rewrite compA algE -compA algE app_comp compA.
   Qed.
 
@@ -382,6 +403,7 @@ Section algebra.
   (** F-algebras form a category *)
   Program Canonical Structure ALGEBRAS: Category :=
     {| ob := Algebra ; id := @alg_id ; comp := @alg_comp |}.
+  (* SOLUTION *)
   Next Obligation. intros * f f' H g g' G. by apply comp_eqv. Qed.
   Next Obligation. intros. apply idl. Qed.
   Next Obligation. intros. apply idr. Qed.
@@ -405,11 +427,13 @@ Section algebra.
     (** it remains to prove that they are inverse of each other *)
     Lemma Lambek1: i ∘ j ≡ id.
     Proof. 
+      (* SOLUTION *)
       set i' := Build_alg_hom FI I i (eqv_refl _).
       apply (init_unique H I (i' ∘ H FI) (alg_id _)).
     Qed.
     Lemma Lambek2: j ∘ i ≡ id.
     Proof.
+      (* SOLUTION *)
       by rewrite (algE j) /= -app_comp Lambek1 app_id.
     Qed.
 
@@ -450,6 +474,7 @@ Section coalgebra.
   Program Definition coalg_id (A: Coalgebra): coalg_hom A A :=
     {| coalg_bod := id |}.
   Next Obligation.
+    (* SOLUTION *)
     intros. by rewrite app_id idl idr.
   Qed.
 
@@ -457,6 +482,7 @@ Section coalgebra.
     (g: coalg_hom B C) (f: coalg_hom A B): coalg_hom A C :=
     {| coalg_bod := g ∘ f |}.
   Next Obligation.
+    (* SOLUTION *)
     intros. by rewrite -compA coalgE compA coalgE app_comp compA.
   Qed.
 
@@ -467,6 +493,7 @@ Section coalgebra.
   (** F-coalgebras form a category *)
   Program Canonical Structure COALGEBRAS: Category :=
     {| ob := Coalgebra ; id := @coalg_id ; comp := @coalg_comp |}.
+  (* SOLUTION *)
   Next Obligation. intros* f f' H g g' G. by apply comp_eqv. Qed.
   Next Obligation. intros. apply idl. Qed.
   Next Obligation. intros. apply idr. Qed.
@@ -478,6 +505,10 @@ Section coalgebra.
     (** ** CoLambek's lemma: final F-coalgebras are fixpoints for F,
         i.e., their underlying morphism actually is an isomorphism *)
 
+    Lemma CoLambek: F Z ≃ Z.
+    Abort.
+    
+    (* BEGIN SOLUTION *)
     (** shorthand for this morphism *)      
     Let z: 𝐂 Z (F Z) := Z.
 
@@ -504,6 +535,7 @@ Section coalgebra.
          bwd := z;
          isoE := CoLambek1;
          isoE' := CoLambek2 |}. 
+    (* BEGIN SOLUTION *)
   End final_coalgebra.
 
 End coalgebra.
