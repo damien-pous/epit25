@@ -85,12 +85,12 @@ Fixpoint nat_iter {X} (f: option X -> X) (n: nat) :=
 Lemma init_nat_alg: initial nat_alg.
 Proof.
   esplit. 
-  - intro f. exists (nat_iter (alg_mor f)). 
+  - intros [X f]. exists (nat_iter f). 
     by apply funext; case. 
-  - intros X g. apply funext=>/=n. 
+  - intros [X h] [g Hg]. apply funext=>/=n. 
     induction n as [|n IH]; cbn.
-    -- apply (funext' (algE g) None).
-    -- rewrite -IH. apply (funext' (algE g) (Some _)).
+    -- apply (funext' Hg None).
+    -- rewrite -IH. apply (funext' Hg (Some _)).
 Qed.
 
 End initial_option.
@@ -158,9 +158,9 @@ Section initial_times.
   Lemma init_empty_alg A: initial (empty_alg A).
   Proof.
     esplit.
-    - intro f. esplit. by case.
+    - intros [X f]. esplit. by case.
       apply funext. by move=>[?[]].
-    - intros X g. apply funext; cbn. by case.
+    - intros [X h] [g Hg]. apply funext; cbn. by case.
   Qed.
   (* END  SOLUTION *)
 
@@ -191,12 +191,12 @@ Section initial_otimes.
    Lemma init_list_alg A: initial (list_alg A).
    Proof.
      esplit. 
-     - intro f. exists (list_iter (alg_mor f)). 
+     - intros [X f]. exists (list_iter f). 
        apply funext. by case; [case |].
-     - intros X g. apply funext=>/=l.
+     - intros [X h] [g Hg]. apply funext=>/=l.
        induction l as [|a l IH]; cbn.
-       -- apply (funext' (algE g) None).
-       -- rewrite -IH. apply (funext' (algE g) (Some (a, _))). 
+       -- apply (funext' Hg None).
+       -- rewrite -IH. apply (funext' Hg (Some (a, _))). 
    Qed.
   (* END SOLUTION *)
 
@@ -301,9 +301,9 @@ CoFixpoint conat_coiter {X} (f: X -> option X) (x: X): conat :=
 Lemma final_conat_coalg: final conat_coalg.
 Proof.
   esplit.
-  - intro f. exists (conat_coiter (coalg_mor f)).
-    apply funext=>x/=. by destruct (coalg_mor f x). 
-  - intros X f g. apply funext=>x. 
+  - intros [X f]. exists (conat_coiter f).
+    apply funext=>x/=. by destruct (f x). 
+  - intros [X h] [f Hf] [g Hg]. apply funext=>x. cbn in *. 
     (* not provable in Rocq *)
 Abort.
 
@@ -323,8 +323,8 @@ CoFixpoint stream_coiter {A X} (f: X -> A×X) x :=
 Lemma final_stream_coalg A: final (stream_coalg A).
 Proof.
   esplit.
-  - intro f. exists (stream_coiter (coalg_mor f)).
-    apply funext=>x. cbn. by destruct (coalg_mor f x).
-  - intros X f g.
+  - intros [X f]. exists (stream_coiter f).
+    apply funext=>x. cbn. by destruct (f x).
+  - intros [X h] [f Hf] [g Hg]; cbn in *.
     (* not provable in Rocq *)
 Abort.
