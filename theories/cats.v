@@ -445,8 +445,8 @@ Section algebra.
    *)
   Record Alg_hom (A B: Algebra) := alg_hom
     {
-      alg_bod:> A ~> B;                     (** alg_car A ~> alg_car B *)
-      algE: alg_bod ∘ A ≡ B ∘ app F alg_bod (** alg_bod ∘ alg_mor A ≡ alg_mor B ∘ app F alg_bod *)
+      alg_bod:> A ~> B;                     (* alg_car A ~> alg_car B *)
+      algE: alg_bod ∘ A ≡ B ∘ app F alg_bod (* alg_bod ∘ alg_mor A ≡ alg_mor B ∘ app F alg_bod *)
     }.
   Arguments alg_bod {_ _}.
 
