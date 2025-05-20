@@ -1,12 +1,45 @@
+From epit Require Import utils.
 From Coinduction Require Import lattice.
+Arguments Datatypes.id {_} _/.
+Instance rw_leq {X} {L: CompleteLattice X}: RewriteRelation (@leq X L) := {}.
 
 (** * Abstract theory of coinduction via the final chain and tower induction *)
-Set Implicit Arguments.
+
+Module KnasterTarski. 
+Section s.
+ Context {X} {L: CompleteLattice X}.
+ Variable b: mon X.
+
+ Lemma sup_of_pfp_pfp (Y: X -> Prop):
+   (forall y, Y y -> y <= b y) -> sup Y <= b (sup Y).
+ Proof.
+   intro H.
+   apply sup_spec. cbn.
+   intros y Yy.
+   rewrite (H y Yy). 
+   apply b.
+   by apply leq_xsup. 
+ Qed.
+ 
+ Definition gfp := sup (fun x => x <= b x).
+
+ Theorem fixpoint_gfp: b gfp == gfp.
+ Proof.
+   have post: gfp <= b gfp.
+   by apply sup_of_pfp_pfp.
+   apply antisym; trivial.
+   apply leq_xsup. by apply b.
+ Qed.
+End s.
+End KnasterTarski. 
 
 Section s.
 
  Context {X} {L: CompleteLattice X}.
-  
+
+ 
+
+ 
  (** inf-closed predicates *)
  Definition inf_closed (P: X -> Prop) := forall T, T <= P -> P (inf T).
 
