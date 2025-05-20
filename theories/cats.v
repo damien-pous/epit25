@@ -42,7 +42,7 @@ Structure Category :=
     ob :> Type;
     (** for each pair of objects, the collection of morphisms
         (a [Setoid] rather than [Type], because we want to be
-         able to specify to compare morphisms for equality) *)
+         able to specify how to compare morphisms for equality) *)
     hom:> ob -> ob -> Setoid;
     (** for each object [A] the identity morphism on [A] *)
     id: forall {A}, hom A A;
@@ -55,7 +55,7 @@ Structure Category :=
 
     (** identity is a neutral element on the left  *)
     idl: forall {A B} f, @comp A A B f id ≡ f;
-    (** and on the left  *)
+    (** and on the right  *)
     idr: forall {A B} f, @comp B A A id f ≡ f;
     (** composition is associative *)
     compA: forall {A B C D} f g h, @comp A B D (@comp B C D h g) f ≡ @comp A C D h (@comp A B C g f)
@@ -359,7 +359,7 @@ Record Functor (𝐂 𝐃: Category) :=
     app_eqv:: forall {A B}, Proper (eqv ==> eqv) (@app A B);
     (** functors preserve identity morphisms *)
     app_id: forall {A}, app (id: A ~> A) ≡ id;
-    (** functors preserve and composition *)
+    (** functors preserve composition *)
     app_comp: forall {U V W} (f: U ~> V) (g: V ~> W), app (g ∘ f) ≡ app g ∘ app f;
   }.
 
@@ -491,7 +491,7 @@ Section algebra.
   Canonical Alg_hom_setoid (A B: Algebra) :=
     kern_setoid _ (@alg_bod A B).
 
-  (** F-algebras and thei homomorphisms form a category *)
+  (** F-algebras and their homomorphisms form a category *)
   Program Canonical ALGEBRAS: Category :=
     {| ob := Algebra ; id := @alg_id ; comp := @alg_comp |}.
   (* SOLUTION *)
