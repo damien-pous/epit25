@@ -2,7 +2,9 @@ From epit Require Import cats.
 
 (** * Case-study in the category of types and functions
 
-  In this file, we ground ourselves in category TYPES.
+  In this file, we ground ourselves in category TYPES of types and functions between them.
+  (in set theory, this cateogory is usually called SETS)
+
   In this setting, we study some concrete inital algebras and final coalgebras.
 
   We allow ourselves the use of the functional and propositional extensionality axioms:
@@ -21,30 +23,34 @@ Notation Functor := (Functor TYPES TYPES).
 
 (** ** The [A×X] functor *)
 Program Definition F_times A: Functor :=
-  {| app' X := A × X; app X Y f ax := (ax.1,f ax.2) |}.
+  {| app' X := A × X;
+     app X Y f ax := (ax.1,f ax.2) |}.
 Next Obligation.
   intros. by apply funext=>[[]].
 Qed.
 
-(** ** The option functor *)
+(** ** The option functor (also known as [1+X]) *)
 Program Canonical F_option: Functor :=
   {| app' := option; app := Option.map |}.
 Next Obligation. Admitted.
 Next Obligation. Admitted.
 
-(** ** The list functor *)
+(** ** The list functor (sometimes written [X*])*)
 Program Definition F_list: Functor :=
-  {| app' := list; app := List.map |}.
+  {| app' := list; 
+     app := List.map |}.
 Next Obligation. Admitted.
 Next Obligation. Admitted.
 
 (** ** The [X^A] functor *)
 Program Definition F_exp A: Functor :=
-  {| app' X := A -> X; app X Y f g := comp f g |}.
+  {| app' X := A -> X;
+     app X Y f g := comp f g |}.
 
 (** ** The powerset functor *)
 Program Definition F_pow: Functor :=
-  {| app' X := (X -> Prop); app X Y f S := fun y => exists x, S x /\ y = f x |}.
+  {| app' X := (X -> Prop);
+     app X Y f S := fun y => exists x, S x /\ y = f x |}.
 Next Obligation.
 Admitted.
 Next Obligation.
@@ -53,22 +59,24 @@ Admitted.
 
 (** * 2. Examples of Initial algebras on TYPES *)
 
-(** ** natural unary numbers form the initial algebra of the [option] functor *)
+(** ** natural unary numbers form the initial algebra of the [option X = 1+X] functor *)
 
 Section initial_option.
 
-(** This is the exact definition you can find in the standard library *)
+(** The definition of natural numbers from the standard library *)
 Inductive nat := O | S (n: nat).
 
+(** Consider the following function *)
 Definition nat_pack (n: option nat): nat :=
   match n with Some n => S n | None => O end.
 
-(** The pair (O, S) defines an option-algebra  *)
+(** It is sometimes writen [[O,S]] (copairing of O and S),
+    it provides [nat] with an algebra structure: *)
 Program Definition nat_alg: Algebra F_option :=
   {| alg_car := nat;
      alg_mor := nat_pack |}.
 
-(** Remains to prove its initiality. *)
+(** It remains to prove initiality, for which we rely on the following iterator *)
 Fixpoint nat_iter {X} (f: option X -> X) (n: nat) :=
   match n with
   | O   => f None
@@ -88,16 +96,16 @@ Qed.
 
 End initial_option.
 
-(** Having established [init_nat_alg], we can see this result less as a fact about [nat] itself than about [option], proving it admits an initial algebra.
-  With this knowledge, we can work over an abstract view of [nat].
-*)
+(** since [nat] (with [[O,S]]) is an initial algebra, every other initial algebra is isomorphic to it.
+    in particular, this enables an abstract view of [nat]. *)
 Module abstract_nat.
   Parameter A: Algebra F_option.
   Parameter I: initial A.
+  
   (** We define [nat] as the carrier of the initial algebra *)
   Definition nat := alg_car A.
 
-  (** We get a constructor and a destructor by Lambek *)
+  (** We get a constructor and a destructor by Lambek's lemma *)
   Definition i: F_option nat ≃ nat := Lambek I.
   Definition c: option nat -> nat  := fwd i.
   Definition d: nat -> option nat  := bwd i.
@@ -108,7 +116,7 @@ Module abstract_nat.
 
   (** And a recursion principle *)
   Definition pack_alg {X} (x : X) (s: X -> X): Algebra F_option :=
-    @alg TYPES _ X (fun ox => match ox with | None => x | Some y => s y end).
+    @alg TYPES F_option X (fun ox => match ox with | None => x | Some y => s y end).
 
   Definition abstract_nat_iter {X} (x : X) (s: X -> X): nat -> X :=
     alg_bod (init_mor I (pack_alg x s)).
@@ -126,6 +134,7 @@ Module abstract_nat.
     apply (funext' (algE (I (pack_alg x s))) (Some n)).
   Qed.
 
+  (** [nat] is still abstract, but we can define addition on it *)
   Definition add (n m: nat): nat := abstract_nat_iter m S n.
   Lemma addO n: add O n = n.
   Proof. apply abstract_nat_iterO. Qed.
@@ -147,7 +156,7 @@ End initial_times.
 Section initial_otimes.
 
 (** ** Exercise
-     Define the initial algebra for the functor [λ X. 1 + A * X].
+     Define the initial algebra for the functor [λ X. 1 + A × X].
  *)
 
   (** The [1 + A×X] functor *)
@@ -158,9 +167,9 @@ End initial_otimes.
 
 (** * 3. Polynomial Functors
 
-  We have constructed and proven by hand a couple of initial algebras. We can avoid some tedious work by capturing a large class at once: polynomial functors, corresponding intuitively to functors having the shape of a formal series [λX.Σ X^n].
-  Conveniently, these functors admit a simple representation as *containers*. In the following section,
-we construct their initial algebras.
+  We have constructed and proven by hand a couple of initial algebras. We can avoid some tedious work by capturing a large class at once: polynomial functors, corresponding intuitively to functors having the shape of a formal series [λX.Σ_n A_n×X^n].
+  Conveniently, these functors admit a simple representation as *containers*.
+  In the following section, we construct their initial algebras.
  *)
 
 Section containers.
@@ -186,7 +195,7 @@ Section containers.
   Qed.
 
   (** ** A few examples *)
-  (** λX . X * X : only one shape, and two piece of data to store *)
+  (** λX . X * X : only one shape, and two pieces of data to store *)
   Example container_pair   : container := {| A := unit ; B := fun _ => bool |}.
   (** option : two shapes, with respectively 0 and 1 piece of data to store *)
   Example container_option : container := {| A := bool ; B := fun b => if b then unit else False |}.
@@ -241,7 +250,7 @@ CoInductive conat := coO | coS(n: conat).
 Definition conat_unpack (n: conat): option conat :=
   match n with coS n => Some n | coO => None end.
 
-Definition conat_coalg: Coalgebra F_option :=
+Program Definition conat_coalg: Coalgebra F_option :=
   {| coalg_car := conat: ob TYPES;
      coalg_mor := conat_unpack |}.
 
