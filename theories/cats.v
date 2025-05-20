@@ -38,22 +38,52 @@ From epit Require Export setoids.
 
 Structure Category :=
   {
+    (** the collection of objects *)
     ob :> Type;
+    (** for each pair of objects, the collection of morphisms
+        (a [Setoid] rather than [Type], because we want to be
+         able to specify to compare morphisms for equality) *)
     hom:> ob -> ob -> Setoid;
-#[canonical=no] id: forall {A}, hom A A;
-#[canonical=no] comp: forall {A B C}, hom B C -> hom A B -> hom A C;
+    (** for each object [A] the identity morphism on [A] *)
+    id: forall {A}, hom A A;
+    (** for each triple of objects the composition operation on morphisms *)
+    comp: forall {A B C}, hom B C -> hom A B -> hom A C;
 
-#[canonical=no] comp_eqv:: forall {A B C}, Proper (eqv ==> eqv ==> eqv) (@comp A B C);
-#[canonical=no] idl: forall {A B} f, @comp A A B f id ≡ f;
-#[canonical=no] idr: forall {A B} f, @comp B A A id f ≡ f;
-#[canonical=no] compA: forall {A B C D} f g h, @comp A B D (@comp B C D h g) f ≡ @comp A C D h (@comp A B C g f)
+    (** composition should preserve morphism equivalence
+        intuitively: [forall f f', f≡f' -> forall g g', g≡g' -> g∘f ≡ g'∘f'] *)
+    comp_eqv:: forall {A B C}, Proper (eqv ==> eqv ==> eqv) (@comp A B C);
+
+    (** identity is a neutral element on the left  *)
+    idl: forall {A B} f, @comp A A B f id ≡ f;
+    (** and on the left  *)
+    idr: forall {A B} f, @comp B A A id f ≡ f;
+    (** composition is associative *)
+    compA: forall {A B C D} f g h, @comp A B D (@comp B C D h g) f ≡ @comp A C D h (@comp A B C g f)
   }.
 
+(** thanks to the two coercions [:>] in the first two lines,
+    a category [𝐂] can automatically be casted 
+    - into a type (its type of objects), so that we can write
+    [forall A B C: 𝐂] to quantify over objects, rather than [forall A B C: ob 𝐂]
+    - into a function with two arguments (its type of morphisms), so that we can write
+    [f: 𝐂 A B] instead of [f: hom 𝐂 A B]
+    (below we actually define a notation so that we can also write just [f: A ~> B])
+ *)
+
+(** we declare many arguments as implicit 
+    for instance, [id] formally has two arguments:
+    the category [𝐂] of which it belongs to, and the object [A] which is both its source and target
+    those can be inferred automatically most of the time, by the following command we declare them as implicit.
+ *)
 Arguments id {_ _}.
+(** similarly, composition has six arguments (the category, the three objects, the two morphisms)
+    we declare the first four as implicit since so that it suffices to provide the two morphisms *)
 Arguments comp {_ _ _ _}.
+
+(** standard notations for composition and homsets *)
 Notation "g ∘ f" := (comp g f).
-Infix "∘[ 𝐂 ] " := (@comp 𝐂 _ _ _) (at level 40, left associativity, only parsing).
 Notation "A ~> B" := (hom _ A B) (at level 99, B at level 200, format "A  ~>  B").
+
 
 (** We can already toy with the structure by defining a few categories.
    Note that [Program] allows you to only fill in explicitely the data in the definition of the structure.
@@ -178,28 +208,35 @@ End epimono.
 Section iso.
   Context {𝐂: Category}.
   Record iso (A B: 𝐂) :=
-    { fwd: A ~> B;
+    {
+      (** two morphisms *)
+      fwd: A ~> B;
       bwd: B ~> A;
-
+      (** and the proofs that they compose to the identity *)
       isoE : fwd ∘ bwd ≡ id;
       isoE': bwd ∘ fwd ≡ id
     }.
+  (** like before, some arguments may remain implicit *)
   Arguments fwd {_ _}.
   Arguments bwd {_ _}.
+  (** notations for the forward and backward morphisms *)
   Notation "i ^1"  := (fwd i) (at level 20).
   Notation "i ^-1" := (bwd i) (at level 20).
   Infix "≃" := iso (at level 70).
 
+  (** identity isomorphism *)
   Program Definition iso_refl A: A ≃ A :=
     {| fwd := id; bwd := id |}.
   Next Obligation. intro. apply idl. Qed.
   Next Obligation. intro. apply idl. Qed.
 
+  (** inverting an isomorphism *)
   Program Definition iso_sym A B (i: A ≃ B): B ≃ A :=
     {| fwd := i^-1; bwd := i^1 |}.
   Next Obligation. apply isoE'. Qed.
   Next Obligation. apply isoE. Qed.
 
+  (** composition of isomorphisms *)
   Program Definition iso_trans A B C (i: A ≃ B) (j: B ≃ C): A ≃ C :=
     {| fwd := j^1 ∘ i^1; bwd := i^-1 ∘ j^-1 |}.
   Next Obligation.
@@ -311,27 +348,37 @@ End example_initial_final.
 
 Record Functor (𝐂 𝐃: Category) :=
   {
+    (** the action of the functor on objects (notation [F A] thanks to the coercion) *)
     app':> 𝐂 -> 𝐃;
+    (** the action of the functor on morphisms
+        (no coercion, we have to write [app F f] for what is usually written [F f] in maths) *)
     app : forall {A B}, 𝐂 A B -> 𝐃 (app' A) (app' B);
 
+    (** the action of the functor on morphisms should preserve morphism equivalence
+        (i.e., [forall f f': A ~> B, f ≡ f' -> app F f ≡ app F f']) *)
     app_eqv:: forall {A B}, Proper (eqv ==> eqv) (@app A B);
+    (** functors preserve identity morphisms *)
     app_id: forall {A}, app (id: A ~> A) ≡ id;
+    (** functors preserve and composition *)
     app_comp: forall {U V W} (f: U ~> V) (g: V ~> W), app (g ∘ f) ≡ app g ∘ app f;
   }.
 
 (** The identity functor *)
 Program Definition functor_id {𝐂}: Functor 𝐂 𝐂 :=
   {|
+    (** identity on objects *)
     app' A := A;
-    app _ _ f := f;
+    (** and on morphisms *)
+    app A B (f: A ~> B) := f;
   |}.
 Next Obligation. by intros. Qed.
 
 (** Composition of functors *)
 Program Definition functor_comp {𝐂 𝐃 𝐄} (G: Functor 𝐃 𝐄) (F: Functor 𝐂 𝐃): Functor 𝐂 𝐄 :=
   {|
+    (** we just compose the two components *)
     app' A := G (F A);
-    app _ _ f := app G (app F f);
+    app A B (f: A ~> B) := app G (app F f);
   |}.
 Next Obligation.
   intros* f g fg. by apply app_eqv, app_eqv.
@@ -340,15 +387,23 @@ Next Obligation. cbn; intros. by rewrite 2!app_id. Qed.
 Next Obligation. cbn; intros. by rewrite 2!app_comp. Qed.
 
 (** Constant functor *)
-Program Definition functor_constant {𝐂 𝐃: Category} (A: 𝐃): Functor 𝐂 𝐃:=
-  {| app' _ := A; app _ _ _ := id |}.
+Program Definition functor_constant {𝐂 𝐃: Category} (D: 𝐃): Functor 𝐂 𝐃:=
+  {|
+    (** always the given object on objects *)
+    app' _ := D;
+    (** always the identity on morphisms *)
+    app _ _ _ := id
+  |}.
 Next Obligation. by cbn; intros. Qed.
 Next Obligation. cbn; intros. by rewrite idl. Qed.
 
-Definition app_iso {𝐂 𝐃} (F: Functor 𝐂 𝐃) A B: A ≃ B -> F A ≃ F B.
+(** Functors preserve isomorphisms *)
+Lemma app_iso {𝐂 𝐃} (F: Functor 𝐂 𝐃) A B: A ≃ B -> F A ≃ F B.
 Proof.
   (** note how we can also provide the two morphisms from within the proof *)
-  intro i. exists (app F (i^1)) (app F (i^-1)).
+  intro i. esplit.
+  exact (app F (i^1)).
+  exact (app F (i^-1)).
   (* SOLUTION *)
   by rewrite -app_comp isoE app_id.
   by rewrite -app_comp isoE' app_id.
@@ -364,21 +419,47 @@ Section algebra.
   Context {𝐂: Category}.
   Variable F: Functor 𝐂 𝐂.
 
-  (** F-algebras: an object and a morphism *)
+  (** F-algebras: an object [A] and a morphism [a: F A ~> A]
+      (here [A=alg_car] and [a=alg_mor]) *)
   Record Algebra := alg
     {
       alg_car:> 𝐂;
       alg_mor:> F alg_car ~> alg_car
     }.
 
-  (** F-algebra homomorphisms: morphisms making the obvious square commute *)
+  (** F-algebra homomorphisms from [(A, a: F A ~> A)] to [(B, b: F B ~> B)]:
+      morphisms [f: A ~> B] such that the following square commutes:
+
+       F A ---F f---> F B
+        |              |
+        a              b
+        |              |
+        v              v
+        A -----f-----> B 
+
+      i.e., f ∘ a ≡ b ∘ F f
+
+      below, [f=alg_bod], [a=alg_mor A], [b=alg_mor B], [A=alg_car A], [B=alg_car B]
+      we write [F f] as [app F f]
+      and we do not need to write [alg_mor] and [alg_car] because they are coercions
+   *)
   Record Alg_hom (A B: Algebra) := alg_hom
     {
-      alg_bod:> A ~> B;
-      algE: alg_bod ∘ A ≡ B ∘ app F alg_bod
+      alg_bod:> A ~> B;                     (** alg_car A ~> alg_car B *)
+      algE: alg_bod ∘ A ≡ B ∘ app F alg_bod (** alg_bod ∘ alg_mor A ≡ alg_mor B ∘ app F alg_bod *)
     }.
   Arguments alg_bod {_ _}.
 
+  (** The identity algebra homomorphism, from an algebra to itself
+
+       F A ---F id--> F A
+        |              |
+        a              a
+        |              |
+        v              v
+        A -----id----> A
+
+   *)
   Program Definition alg_id (A: Algebra): Alg_hom A A :=
     {| alg_bod := id |}.
   Next Obligation.
@@ -386,6 +467,16 @@ Section algebra.
     intro. by rewrite app_id idl idr.
   Qed.
 
+  (** Composing algebra homomorphisms
+
+       F A ---F f---> F B ---F g---> F C
+        |              |              |
+        a              b              c
+        |              |              |
+        v              v              v
+        A -----f-----> B -----g-----> C 
+
+   *)
   Program Definition alg_comp (A B C: Algebra)
     (g: Alg_hom B C) (f: Alg_hom A B): Alg_hom A C :=
     {| alg_bod := g ∘ f |}.
@@ -395,11 +486,13 @@ Section algebra.
   Qed.
 
   (** We compare algebra homomorphisms via their underlying morphisms *)
+  (** the following line defines [f ≡ g] for [f,g : Alg_hom A B] to be
+      [alg_bod f ≡ alg_bod g], i.e., an equivalence of morphisms in [𝐂] *)
   Canonical Alg_hom_setoid (A B: Algebra) :=
     kern_setoid _ (@alg_bod A B).
 
-  (** F-algebras form a category *)
-  Program Canonical Structure ALGEBRAS: Category :=
+  (** F-algebras and thei homomorphisms form a category *)
+  Program Canonical ALGEBRAS: Category :=
     {| ob := Algebra ; id := @alg_id ; comp := @alg_comp |}.
   (* SOLUTION *)
   Next Obligation. intros * f f' H g g' G. by apply comp_eqv. Qed.
@@ -408,6 +501,7 @@ Section algebra.
   Next Obligation. intros. apply compA. Qed.
 
   Section initial_algebra.
+    (** an initial algebra is "just" an initial object in the above category of algebras *)
     Context {I: Algebra} (H: initial I).
 
     (** ** Lambek's lemma: initial F-algebras are fixpoints for F,
