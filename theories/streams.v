@@ -2,41 +2,46 @@ From epit Require Import coinduction.
 Require Import Psatz.           (* for the [nia/lia] tactics about integer arithmetic *)
 Unset Primitive Projections.
 
-(** here we only consider streams of natural numbers, for the sake of simplicity *)
+(** * 0. streams *)
+
+(** Here we only consider streams of natural numbers, for the sake of simplicity *)
 CoInductive stream := cons{hd: nat; tl: stream}.
 Infix "::" := cons. 
 
-(** example streams, defined by corecursion *)
+(** Some streams, defined by corecursion *)
 CoFixpoint const n := n :: const n. 
 CoFixpoint alt n m := n :: alt m n.
 CoFixpoint single n := n :: single 0. 
 
-(** relation the notion of bisimulation from Daniela's course *)
+(** Recall the notion of bisimulation from Daniela's course *)
 Definition bisimulation (R: relation stream) :=
   forall s t, R s t -> hd s = hd t /\ R (tl s) (tl t).
 
-(** one could typically define bisimilarity as the union of all bisimulations,
-    or, as in the following line, as a Rocq coinductive predicate *)
-CoInductive rocq_bisim: relation stream :=
-| bis: forall s t, hd s = hd t /\ rocq_bisim (tl s) (tl t) -> rocq_bisim s t.
+(** * 1. using Rocq's support for coinductive predicates to define bisimilarity *)
 
-(** [rocq_bisim] is indeed a bisimulation (by its only constructor) *)
-Lemma bisimulation_rocq_bisim: bisimulation rocq_bisim.
+(** One could typically define bisimilarity as the union of all bisimulations,
+    or, as in the following line, as a Rocq coinductive predicate *)
+CoInductive native_bisim: relation stream :=
+| bis: forall s t, hd s = hd t /\ native_bisim (tl s) (tl t) -> native_bisim s t.
+
+(** [native_bisim] is indeed a bisimulation (by its only constructor) *)
+Lemma bisimulation_native_bisim: bisimulation native_bisim.
 Proof. by intros s t []. Qed.
 
-(** we can prove simple laws by Rocq coinduction *)
-Lemma alt_nn_rocq n: rocq_bisim (alt n n) (const n).
+(** We can prove simple laws by Rocq coinduction *)
+Lemma alt_nn_native n: native_bisim (alt n n) (const n).
 Proof.
   (** start the proof by coinduction *)
   cofix CH.
   (** use constructor to make sure we are guarded *)
-  constructor. cbn. split. 
-  - reflexivity.
-  - exact CH.                   (** use coinduction hypothesis *)
+  constructor. cbn.
+  split. 
+  - reflexivity.                (** compare the heads *)
+  - exact CH.                   (** use coinduction hypothesis for the tails *)
 Qed.
 
-(** and [rocq_bisim] is the largest bisimulation (by Rocq coinduction again) *)
-Lemma rocq_bisim_largest_bisimulation R: bisimulation R -> R <= rocq_bisim.
+(** [native_bisim] is the largest bisimulation (by Rocq coinduction again) *)
+Lemma native_bisim_largest_bisimulation R: bisimulation R -> R <= native_bisim.
 Proof.
   intro HR.
   cofix CH.
@@ -47,17 +52,20 @@ Proof.
   - apply CH, HR.
 Qed.
 
-(** consider instead the following monotone function on relations
+(** * 2. using the [coinduction] library to define bisimilarity *)
+
+
+(** Consider instead the following monotone function on relations
     (note that relations, of type [stream -> stream -> Prop], form a complete lattice)  *)
 Program Definition b: mon (stream -> stream -> Prop) :=
   {| body R s t := hd s = hd t /\ R (tl s) (tl t) |}.
 Next Obligation. firstorder. Qed.
 
-(** its postfixpoints are precisely the bisimulations *)
+(** Its postfixpoints are precisely the bisimulations *)
 Remark postfixpoint_bisimulation R: R <= b R <-> bisimulation R.
 Proof. reflexivity. Qed.
 
-(** hence, its greatest fixpoint is bisimilarity---we take this as the definition *)
+(** Hence, its greatest fixpoint is bisimilarity---we take this as the definition *)
 Notation bisim := (gfp b).
 Infix "~" := bisim (at level 70).
 
@@ -65,21 +73,23 @@ Infix "~" := bisim (at level 70).
 Lemma bisimulation_bisim: bisimulation bisim.
 Proof. exact (gfp_pfp b). Qed.
 
-(** whence the following basic properties *)
+(** Whence the following basic properties *)
 Instance hd_bisim: Proper (bisim ==> eq) hd.
 Proof. intros x y H. apply bisimulation_bisim, H. Qed.
 Instance tl_bisim: Proper (bisim ==> bisim) tl.
 Proof. intros x y H. apply bisimulation_bisim, H. Qed.
 
-(** also note that our two variants of bisimilarity coincide *)
-Remark sanity_check: bisim == rocq_bisim.
+(** Also note that the two definition of bisimilarity seen so far coincide *)
+Remark sanity_check: bisim == native_bisim.
 Proof.
   apply antisym.
-  - apply rocq_bisim_largest_bisimulation, bisimulation_bisim.
-  - apply leq_gfp, bisimulation_rocq_bisim.
+  - apply native_bisim_largest_bisimulation, bisimulation_bisim.
+  - apply leq_gfp, bisimulation_native_bisim.
 Qed.
 
-(** let us prove the same law as before, with our definition of bisimilarity *)
+(** * 3. Proving bisimilarity laws by tower induction *)
+
+(** Let us prove the same law as before, with our definition of bisimilarity, by tower induction *)
 Lemma alt_nn n: alt n n ~ const n.
 Proof.
   (** rather than proving the statement, we generalize to all elements on the chain *)
@@ -97,7 +107,7 @@ Proof.
     -- exact HR.              (** here we use the coinduction hypothesis *)
 Qed.
 
-(** the coq-coinduction library provides the tactic [coinduction],
+(** The [coinduction] library provides the tactic [coinduction],
     which automates the bureaucratic steps (in particular, it proves inf_closure automatically) *)
 Lemma alt_nn_bis n: alt n n ~ const n.
 Proof.
@@ -106,11 +116,15 @@ Proof.
     cbn. split. 
     -- reflexivity.
     -- exact HR.
-  (** overall, this proof is exactly the same as the one with native coinduction  *)
+  (** overall, this proof is exactly the same as the one with native coinduction
+      the nice thing is that there is no guard condition involved,
+      we will moreover see that this approach enables standard up-to techniques in a streamlined way
+      (those typically break Rocq's guard condition) *)
 Qed.
 
 
 (** * pointwise sum and its properties *)
+
 CoFixpoint plus s t := hd s + hd t :: plus (tl s) (tl t).
 Infix "+" := plus.
 
@@ -144,11 +158,12 @@ Proof.
   - Fail reflexivity.      (* we do not know that [R] is reflexive! *)
 Abort.
 
-(** elements of the final chain are equivalence relations (and in particular bisimilarity itself)
+(** Elements of the final chain are equivalence relations (and in particular bisimilarity itself)
     this property makes it possible to use "up-to equivalence" techniques in the subsequent proofs, implicitly *)
 Instance Equivalence_chain_b {R: Chain b}: Equivalence (elem R).
 Proof.
   constructor; revert R.
+  (** [{Reflexive,Symmetric,Transitive}_chain] are generic helpers to show by tower induction that elements of the chain are [{Reflexive,Symmetric,Transitive}] *)
   - apply Reflexive_chain. intros R HR x. by split.
   - apply Symmetric_chain. intros R HR x y []. by split; symmetry.
   - apply Transitive_chain. intros R HR x y z [] []. split. congruence. etransitivity; eauto.
@@ -187,7 +202,7 @@ Lemma shuf_0x: forall x, zeros @ x ~ zeros.
 Proof.
   coinduction R HR. intros x. split; cbn_shuf.
   - nia.
-  - Fail rewrite HR.            (* we do not know that we can rewrite under [+] *)
+  - Fail rewrite HR.            (** we do not know that we can rewrite under [+] *)
 Abort.
 
 (** addition corresponds to a compatible function and preserves the final chain
@@ -196,6 +211,8 @@ Abort.
  *)
 Instance plus_chain: forall {R: Chain b}, Proper (elem R ==> elem R ==> elem R) plus.
 Proof.
+  (** [Proper_chain] is a generic helper to show by tower induction that
+      elements of the chain are preserved by a given function (here, plus) *)
   apply (Proper_chain 2).
   intros R HR x y [xy0 xy'] u v [uv0 uv'].
   split; cbn.
@@ -276,8 +293,8 @@ Qed.
     [hd (s*t) = hd s * hd t]
     [tl (s*t) = tl s * t + hd s ** tl t]
     There [**] is pointwise multiplication by a scalar, which is a special case of convolution product:
-    [x ** s = c x * s]
-    (Remember that [c x] is the stream [x,0,0,...] )
+    [x ** s = single x * s]
+    (Remember that [single x] is the stream [x,0,0,...] )
  *)
 
 (** Like before, we cannot define it as one could expect in Coq, 
@@ -386,6 +403,7 @@ Proof.
   - by rewrite mult_0x mult_x0 plusC HR.
 Qed.
 
+(** X is the stream [0::1::zeros] (think of power series...)  *)
 Definition X := 0 :: one.
 
 Theorem expand x: x ~ single (hd x) + X * tl x.
