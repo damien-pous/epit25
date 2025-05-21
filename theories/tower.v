@@ -111,7 +111,7 @@ Section s.
    - by apply inf_closed_leq. 
  Qed.
 
- (** [gfp] is a prefixpoint  *)
+ (** hence [gfp] is a fixpoint  *)
  Theorem fixpoint_gfp: gfp == b gfp.
  Proof.
    apply antisym.

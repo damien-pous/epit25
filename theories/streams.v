@@ -6,6 +6,8 @@ Require Import Psatz.
 From Coinduction Require Import all. Import CoindNotations.
 Unset Primitive Projections. 
 
+Notation "x" := (elem x) (at level 2, only printing). 
+
 (** here we only consider streams of natural numbers, for the sake of simplicity *)
 CoInductive stream := cons{hd: nat; tl: stream}.
 Infix "::" := cons. 
@@ -32,7 +34,7 @@ Proof. by intros s t []. Qed.
 Lemma alt_nn_rocq n: rocq_bisim (alt n n) (const n).
 Proof.
   (** start the proof by coinduction *)
-  cofix CH.                     
+  cofix CH.
   (** use constructor to make sure we are guarded *)
   constructor. cbn. split. 
   - reflexivity.
@@ -98,25 +100,18 @@ Proof.
     cbn. split. 
     -- reflexivity.
     -- exact HR.              (** here we use the coinduction hypothesis *)
+Qed.
 
-  (** the coq-coinduction library provides the tactic [coinduction],
-      which automates the bureaucratic steps (in particular, it proves inf_closure automatically)
-      thus we can simply write: *)
-  Restart.
+(** the coq-coinduction library provides the tactic [coinduction],
+    which automates the bureaucratic steps (in particular, it proves inf_closure automatically) *)
+Lemma alt_nn_bis n: alt n n ~ const n.
+Proof.
+  (** thus we can simply write *)
   coinduction R HR.     
     cbn. split. 
     -- reflexivity.
     -- exact HR.
   (** overall, this proof is exactly the same as the one with native coinduction  *)
-Qed.
-  
-(** elements of the final chain are equivalence relations *)
-Instance Equivalence_t {R: Chain b}: Equivalence `R.
-Proof.
-  constructor; revert R.
-  - apply Reflexive_chain. intros R HR x. by split.
-  - apply Symmetric_chain. intros R HR x y []. by split; symmetry.
-  - apply Transitive_chain. intros R HR x y z [] []. split. congruence. etransitivity; eauto. 
 Qed.
 
 
@@ -131,7 +126,7 @@ Proof.
   - apply HR.
 Qed.
 
-Notation zeros := (single 0).
+Notation zeros := (single 0).  
 
 Lemma plus_0x x: zeros + x ~ x.
 Proof.
@@ -147,14 +142,28 @@ Proof.
   - apply HR.
 Qed.
 
-(** addition corresponds to a compatible function and preserves the final chain *)
-Instance plus_chain: forall {R: Chain b}, Proper (`R ==> `R ==> `R) plus.
+Lemma unfold_zeros: zeros ~ 0 :: zeros. 
 Proof.
-  apply (Proper_chain 2). 
-  intros R HR x y [xy0 xy'] u v [uv0 uv'].
-  split; cbn.
-  - congruence.
-  - by apply HR. 
+  coinduction R HR. split; cbn.
+  - reflexivity.
+  - Fail reflexivity.      (* we do not know that [R] is reflexive! *)
+Abort.
+
+(** elements of the final chain are equivalence relations (and in particular bisimilarity itself)
+    this property makes it possible to use "up-to equivalence" techniques in the subsequent proofs, implicitly *)
+Instance Equivalence_chain_b {R: Chain b}: Equivalence `R.
+Proof.
+  constructor; revert R.
+  - apply Reflexive_chain. intros R HR x. by split.
+  - apply Symmetric_chain. intros R HR x y []. by split; symmetry.
+  - apply Transitive_chain. intros R HR x y z [] []. split. congruence. etransitivity; eauto.
+Qed.
+
+Lemma zeros_const: zeros ~ 0 :: zeros. 
+Proof.
+  coinduction R HR. split; cbn.
+  - reflexivity.
+  - reflexivity.           (* know we do *)
 Qed.
 
 
@@ -183,7 +192,30 @@ Lemma shuf_0x: forall x, zeros @ x ~ zeros.
 Proof.
   coinduction R HR. intros x. split; cbn_shuf.
   - nia.
-  - rewrite HR. rewrite plus_0x. apply HR. 
+  - Fail rewrite HR.            (* we do not know that we can rewrite under [+] *)
+Abort.
+
+(** addition corresponds to a compatible function and preserves the final chain
+    hence bisimilarity is compatible with addition as a special case,
+    and we can implicit use an "upto + " technique in the subsequent proofs
+ *)
+Instance plus_chain: forall {R: Chain b}, Proper (`R ==> `R ==> `R) plus.
+Proof.
+  apply (Proper_chain 2).
+  intros R HR x y [xy0 xy'] u v [uv0 uv'].
+  split; cbn.
+  - congruence.
+  - by apply HR.
+Qed.
+
+Lemma shuf_0x: forall x, zeros @ x ~ zeros.
+Proof.
+  coinduction R HR. intros x. split; cbn_shuf.
+  - nia.
+  - rewrite HR.      (** now we do! *)
+    rewrite plus_0x. (** and we also use the fact that [R] is transitive, just to rewrite *)
+    apply HR.
+    (** such a proof would typically not be guarded with native coinduction *)
 Qed.
 
 Notation one := (single 1).
@@ -226,7 +258,8 @@ Proof.
     by rewrite plusA. 
 Qed.
 
-(** shuffle product preserves the final chain *)
+(** shuffle product preserves the final chain
+    (not used in the sequel, but would be required to perform proofs "up-to shuffle product") *)
 Instance shuf_chain: forall {R: Chain b}, Proper (`R ==> `R ==> `R) shuf.
 Proof.
   apply (Proper_chain 2). 
@@ -269,7 +302,6 @@ Proof.
   coinduction R HR. intros x. split; cbn_mult.
   - nia.
   - rewrite HR. rewrite plus_0x. apply HR.
-    (* in addition to [plus_chain], we need [mult_chain] for the last rewrite to work! *)
 Qed.
 
 Lemma mult_x0: forall x, x * zeros ~ zeros.
@@ -317,7 +349,8 @@ Proof.
   - by rewrite mult_0x mult_x0 plus_0x.
 Qed.
 
-(** convolution product preserves the final chain  *)
+(** convolution product preserves the final chain
+    (required to do proofs up to convolution product below) *)
 Instance mult_chain: forall {R: Chain b}, Proper (`R ==> `R ==> `R) mult.
 Proof.
   apply (Proper_chain 2). 
@@ -399,7 +432,7 @@ Qed.
 
 (** * closing the loop: streams form the final coalgebra of the functor [nat × X] *)
 
-Canonical stream_setoid := Setoid.build stream bisim Equivalence_t.
+Canonical stream_setoid := Setoid.build stream bisim Equivalence_chain_b.
 
 Program Definition stream_coalg: Coalgebra (ex_setoids.F_times nat) :=
   {| coalg_car := stream_setoid;
