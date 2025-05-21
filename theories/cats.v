@@ -38,26 +38,26 @@ From epit Require Export setoids.
 
 Structure Category :=
   {
-    (** the collection of objects *)
+    (* the collection of objects *)
     ob :> Type;
-    (** for each pair of objects, the collection of morphisms
+    (* for each pair of objects, the collection of morphisms
         (a [Setoid] rather than [Type], because we want to be
-         able to specify to compare morphisms for equality) *)
+         able to specify how to compare morphisms for equality) *)
     hom:> ob -> ob -> Setoid;
-    (** for each object [A] the identity morphism on [A] *)
+    (* for each object [A] the identity morphism on [A] *)
     id: forall {A}, hom A A;
-    (** for each triple of objects the composition operation on morphisms *)
+    (* for each triple of objects the composition operation on morphisms *)
     comp: forall {A B C}, hom B C -> hom A B -> hom A C;
 
-    (** composition should preserve morphism equivalence
+    (* composition should preserve morphism equivalence
         intuitively: [forall f f', f≡f' -> forall g g', g≡g' -> g∘f ≡ g'∘f'] *)
     comp_eqv:: forall {A B C}, Proper (eqv ==> eqv ==> eqv) (@comp A B C);
 
-    (** identity is a neutral element on the left  *)
+    (* identity is a neutral element on the left  *)
     idl: forall {A B} f, @comp A A B f id ≡ f;
-    (** and on the left  *)
+    (* and on the right  *)
     idr: forall {A B} f, @comp B A A id f ≡ f;
-    (** composition is associative *)
+    (* composition is associative *)
     compA: forall {A B C D} f g h, @comp A B D (@comp B C D h g) f ≡ @comp A C D h (@comp A B C g f)
   }.
 
@@ -209,10 +209,10 @@ Section iso.
   Context {𝐂: Category}.
   Record iso (A B: 𝐂) :=
     {
-      (** two morphisms *)
+      (* two morphisms *)
       fwd: A ~> B;
       bwd: B ~> A;
-      (** and the proofs that they compose to the identity *)
+      (* and the proofs that they compose to the identity *)
       isoE : fwd ∘ bwd ≡ id;
       isoE': bwd ∘ fwd ≡ id
     }.
@@ -348,27 +348,27 @@ End example_initial_final.
 
 Record Functor (𝐂 𝐃: Category) :=
   {
-    (** the action of the functor on objects (notation [F A] thanks to the coercion) *)
+    (* the action of the functor on objects (notation [F A] thanks to the coercion) *)
     app':> 𝐂 -> 𝐃;
-    (** the action of the functor on morphisms
+    (* the action of the functor on morphisms
         (no coercion, we have to write [app F f] for what is usually written [F f] in maths) *)
     app : forall {A B}, 𝐂 A B -> 𝐃 (app' A) (app' B);
 
-    (** the action of the functor on morphisms should preserve morphism equivalence
+    (* the action of the functor on morphisms should preserve morphism equivalence
         (i.e., [forall f f': A ~> B, f ≡ f' -> app F f ≡ app F f']) *)
     app_eqv:: forall {A B}, Proper (eqv ==> eqv) (@app A B);
-    (** functors preserve identity morphisms *)
+    (* functors preserve identity morphisms *)
     app_id: forall {A}, app (id: A ~> A) ≡ id;
-    (** functors preserve and composition *)
+    (* functors preserve composition *)
     app_comp: forall {U V W} (f: U ~> V) (g: V ~> W), app (g ∘ f) ≡ app g ∘ app f;
   }.
 
 (** The identity functor *)
 Program Definition functor_id {𝐂}: Functor 𝐂 𝐂 :=
   {|
-    (** identity on objects *)
+    (* identity on objects *)
     app' A := A;
-    (** and on morphisms *)
+    (* and on morphisms *)
     app A B (f: A ~> B) := f;
   |}.
 Next Obligation. by intros. Qed.
@@ -376,7 +376,7 @@ Next Obligation. by intros. Qed.
 (** Composition of functors *)
 Program Definition functor_comp {𝐂 𝐃 𝐄} (G: Functor 𝐃 𝐄) (F: Functor 𝐂 𝐃): Functor 𝐂 𝐄 :=
   {|
-    (** we just compose the two components *)
+    (* we just compose the two components *)
     app' A := G (F A);
     app A B (f: A ~> B) := app G (app F f);
   |}.
@@ -389,9 +389,9 @@ Next Obligation. cbn; intros. by rewrite 2!app_comp. Qed.
 (** Constant functor *)
 Program Definition functor_constant {𝐂 𝐃: Category} (D: 𝐃): Functor 𝐂 𝐃:=
   {|
-    (** always the given object on objects *)
+    (* always the given object on objects *)
     app' _ := D;
-    (** always the identity on morphisms *)
+    (* always the identity on morphisms *)
     app _ _ _ := id
   |}.
 Next Obligation. by cbn; intros. Qed.
@@ -445,8 +445,8 @@ Section algebra.
    *)
   Record Alg_hom (A B: Algebra) := alg_hom
     {
-      alg_bod:> A ~> B;                     (** alg_car A ~> alg_car B *)
-      algE: alg_bod ∘ A ≡ B ∘ app F alg_bod (** alg_bod ∘ alg_mor A ≡ alg_mor B ∘ app F alg_bod *)
+      alg_bod:> A ~> B;                     (* alg_car A ~> alg_car B *)
+      algE: alg_bod ∘ A ≡ B ∘ app F alg_bod (* alg_bod ∘ alg_mor A ≡ alg_mor B ∘ app F alg_bod *)
     }.
   Arguments alg_bod {_ _}.
 
@@ -491,7 +491,7 @@ Section algebra.
   Canonical Alg_hom_setoid (A B: Algebra) :=
     kern_setoid _ (@alg_bod A B).
 
-  (** F-algebras and thei homomorphisms form a category *)
+  (** F-algebras and their homomorphisms form a category *)
   Program Canonical ALGEBRAS: Category :=
     {| ob := Algebra ; id := @alg_id ; comp := @alg_comp |}.
   (* SOLUTION *)
