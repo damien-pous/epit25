@@ -1,7 +1,4 @@
-From epit Require Import utils.
-From Coinduction Require Import lattice.
-Arguments Datatypes.id {_} _/.
-Instance rw_leq {X} {L: CompleteLattice X}: RewriteRelation (@leq X L) := {}.
+From epit Require Import coinduction.
 
 (** abstract theory of greatest fixpoints, in complete lattices *)
 
@@ -50,7 +47,7 @@ End s.
 End KnasterTarski. 
 
 
-(** * 2. Kleene / tower induction *)
+(** * 2. Kleene / final chain *)
 
 Section s.
 
@@ -80,8 +77,8 @@ Section s.
      and although this set is (classically) a chain, we never need to prove it,
   *)
  Inductive C: X -> Prop :=
- | Cb: forall x, C x -> C (b x)       (* closure under b *)
- | Cinf: inf_closed C.          (* closure under infima *)
+ | Cinf: inf_closed C            (* closure under infima *)
+ | Cb: forall x, C x -> C (b x).       (* closure under b *)
 
  (** the greatest fixpoint can be defined as the least element of the final chain *)
  Definition gfp := inf C.
@@ -103,12 +100,20 @@ Section s.
  Corollary gfp_prop (P: X -> Prop): (forall c, C c -> P c) -> P gfp.
  Proof. apply. apply chain_gfp. Qed.
 
+ (** given that the chain is defined as an inductive predicate,
+     we an proceed by induction to prove such properties:
+     any predicate which is closed under infimas and b must contain the whole chain
+     this is called `tower induction' 
+     (cf. Steven Schäfer, Gert Smolka:
+     Tower Induction and Up-to Techniques for CCS with Fixed Points. RAMiCS 2017: 274-289)
+  *)
+
  (** elements of the chain are prefixpoints (by tower induction) *)
  Lemma prefixpoint_chain: forall c, C c -> b c <= c.
  Proof.
-   induction 1 as [c IHc|D DC IHD].
-   - by apply b.
+   induction 1 as [D DC IHD|c IHc].
    - by apply inf_closed_leq. 
+   - by apply b.
  Qed.
 
  (** hence [gfp] is a fixpoint  *)
@@ -119,13 +124,13 @@ Section s.
    - apply prefixpoint_chain, chain_gfp.
  Qed.
 
- (** and in fact the largest (post)-fixpoint (by tower induction) *)
+ (** and in fact the largest (post)-fixpoint (by tower induction again) *)
  Theorem largest_gfp x: x <= b x -> x <= gfp.
  Proof.
    intro Hx. apply gfp_prop. 
-   induction 1 as [c Cc IHc|D DC IHD].
-   - rewrite Hx. by apply b.
+   induction 1 as [D DC IHD|c Cc IHc].
    - apply inf_spec=> d Dd. apply IHD, Dd.
+   - rewrite Hx. by apply b.
  Qed.
 
 End s.

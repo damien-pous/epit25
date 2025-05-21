@@ -1,12 +1,6 @@
-(** * Rutten's stream calculus *)
-
-From epit Require Import cats.
-From epit Require ex_setoids.
-Require Import Psatz.
-From Coinduction Require Import all. Import CoindNotations.
-Unset Primitive Projections. 
-
-Notation "x" := (elem x) (at level 2, only printing). 
+From epit Require Import coinduction.
+Require Import Psatz.           (* for the [nia/lia] tactics about integer arithmetic *)
+Unset Primitive Projections.
 
 (** here we only consider streams of natural numbers, for the sake of simplicity *)
 CoInductive stream := cons{hd: nat; tl: stream}.
@@ -53,7 +47,8 @@ Proof.
   - apply CH, HR.
 Qed.
 
-(** consider instead the following monotone function on relations *)
+(** consider instead the following monotone function on relations
+    (note that relations, of type [stream -> stream -> Prop], form a complete lattice)  *)
 Program Definition b: mon (stream -> stream -> Prop) :=
   {| body R s t := hd s = hd t /\ R (tl s) (tl t) |}.
 Next Obligation. firstorder. Qed.
@@ -66,7 +61,7 @@ Proof. reflexivity. Qed.
 Notation bisim := (gfp b).
 Infix "~" := bisim (at level 70).
 
-(** [bisim] is indeed a bisimulation (being a post-fixpoint of b, lemma [gfp_pfp]) *)
+(** [bisim] is indeed a bisimulation (being a post-fixpoint of [b], lemma [gfp_pfp]) *)
 Lemma bisimulation_bisim: bisimulation bisim.
 Proof. exact (gfp_pfp b). Qed.
 
@@ -151,7 +146,7 @@ Abort.
 
 (** elements of the final chain are equivalence relations (and in particular bisimilarity itself)
     this property makes it possible to use "up-to equivalence" techniques in the subsequent proofs, implicitly *)
-Instance Equivalence_chain_b {R: Chain b}: Equivalence `R.
+Instance Equivalence_chain_b {R: Chain b}: Equivalence (elem R).
 Proof.
   constructor; revert R.
   - apply Reflexive_chain. intros R HR x. by split.
@@ -199,7 +194,7 @@ Abort.
     hence bisimilarity is compatible with addition as a special case,
     and we can implicit use an "upto + " technique in the subsequent proofs
  *)
-Instance plus_chain: forall {R: Chain b}, Proper (`R ==> `R ==> `R) plus.
+Instance plus_chain: forall {R: Chain b}, Proper (elem R ==> elem R ==> elem R) plus.
 Proof.
   apply (Proper_chain 2).
   intros R HR x y [xy0 xy'] u v [uv0 uv'].
@@ -260,7 +255,7 @@ Qed.
 
 (** shuffle product preserves the final chain
     (not used in the sequel, but would be required to perform proofs "up-to shuffle product") *)
-Instance shuf_chain: forall {R: Chain b}, Proper (`R ==> `R ==> `R) shuf.
+Instance shuf_chain: forall {R: Chain b}, Proper (elem R ==> elem R ==> elem R) shuf.
 Proof.
   apply (Proper_chain 2). 
   intros R HR x y xy u v uv. 
@@ -351,7 +346,7 @@ Qed.
 
 (** convolution product preserves the final chain
     (required to do proofs up to convolution product below) *)
-Instance mult_chain: forall {R: Chain b}, Proper (`R ==> `R ==> `R) mult.
+Instance mult_chain: forall {R: Chain b}, Proper (elem R ==> elem R ==> elem R) mult.
 Proof.
   apply (Proper_chain 2). 
   intros R HR x y xy u v uv. 
@@ -431,6 +426,8 @@ Qed.
 
 
 (** * closing the loop: streams form the final coalgebra of the functor [nat × X] *)
+
+From epit Require ex_setoids.
 
 Canonical stream_setoid := Setoid.build stream bisim Equivalence_chain_b.
 
