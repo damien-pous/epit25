@@ -8,19 +8,107 @@ Unset Primitive Projections.
 
 (** here we only consider streams of natural numbers, for the sake of simplicity *)
 CoInductive stream := cons{hd: nat; tl: stream}.
+Infix "::" := cons. 
 
-(** the following monotone function characterises yields bisimilarity as its greatest fixpoint:
-    its post-fixpoints are precisely the bisimulations. *)
+(** example streams, defined by corecursion *)
+CoFixpoint const n := n :: const n. 
+CoFixpoint alt n m := n :: alt m n.
+CoFixpoint single n := n :: single 0. 
+
+(** relation the notion of bisimulation from Daniela's course *)
+Definition bisimulation (R: relation stream) :=
+  forall s t, R s t -> hd s = hd t /\ R (tl s) (tl t).
+
+(** one could typically define bisimilarity as the union of all bisimulations,
+    or, as in the following line, as a Rocq coinductive predicate *)
+CoInductive rocq_bisim: relation stream :=
+| bis: forall s t, hd s = hd t /\ rocq_bisim (tl s) (tl t) -> rocq_bisim s t.
+
+(** [rocq_bisim] is indeed a bisimulation (by its only constructor) *)
+Lemma bisimulation_rocq_bisim: bisimulation rocq_bisim.
+Proof. by intros s t []. Qed.
+
+(** we can prove simple laws by Rocq coinduction *)
+Lemma alt_nn_rocq n: rocq_bisim (alt n n) (const n).
+Proof.
+  (** start the proof by coinduction *)
+  cofix CH.                     
+  (** use constructor to make sure we are guarded *)
+  constructor. cbn. split. 
+  - reflexivity.
+  - exact CH.                   (** use coinduction hypothesis *)
+Qed.
+
+(** and [rocq_bisim] is the largest bisimulation (by Rocq coinduction again) *)
+Lemma rocq_bisim_largest_bisimulation R: bisimulation R -> R <= rocq_bisim.
+Proof.
+  intro HR.
+  cofix CH.
+  intros x y xy.
+  specialize (HR _ _ xy).
+  constructor. split.
+  - apply HR.
+  - apply CH, HR.
+Qed.
+
+(** consider instead the following monotone function on relations *)
 Program Definition b: mon (stream -> stream -> Prop) :=
   {| body R s t := hd s = hd t /\ R (tl s) (tl t) |}.
 Next Obligation. firstorder. Qed.
 
-(** associated relation (bisimularity) *)
-Infix "~" := (gfp b) (at level 70).
+(** its postfixpoints are precisely the bisimulations *)
+Remark postfixpoint_bisimulation R: R <= b R <-> bisimulation R.
+Proof. reflexivity. Qed.
 
-(** notations  for easing readability in proofs by enhanced coinduction *)
-Infix "[~]" := (`_) (at level 70). 
-Infix "{~}" := (b `_) (at level 70). 
+(** hence, its greatest fixpoint is bisimilarity---we take this as the definition *)
+Notation bisim := (gfp b).
+Infix "~" := bisim (at level 70).
+
+(** [bisim] is indeed a bisimulation (being a post-fixpoint of b, lemma [gfp_pfp]) *)
+Lemma bisimulation_bisim: bisimulation bisim.
+Proof. exact (gfp_pfp b). Qed.
+
+(** whence the following basic properties *)
+Instance hd_bisim: Proper (bisim ==> eq) hd.
+Proof. intros x y H. apply bisimulation_bisim, H. Qed.
+Instance tl_bisim: Proper (bisim ==> bisim) tl.
+Proof. intros x y H. apply bisimulation_bisim, H. Qed.
+
+(** also note that our two variants of bisimilarity coincide *)
+Remark sanity_check: bisim == rocq_bisim.
+Proof.
+  apply antisym.
+  - apply rocq_bisim_largest_bisimulation, bisimulation_bisim.
+  - apply leq_gfp, bisimulation_rocq_bisim.
+Qed.
+
+(** let us prove the same law as before, with our definition of bisimilarity *)
+Lemma alt_nn n: alt n n ~ const n.
+Proof.
+  (** rather than proving the statement, we generalize to all elements on the chain *)
+  apply gfp_prop.
+  (** so that we can proceed by `tower induction' *)
+  apply (tower (P:=fun R => R (alt n n) (const n))).
+  - (** we have to show that our property is inf_closed, which is easy (and boring)  *)
+    intros D DC R HR. by apply DC. 
+  - (** and that it is closed under [b], which is the where we expect to do the real work *)
+    (** even though we proceed by induction, [HR] should be thought of as a coinduction hypothesis *)
+    intros R HR.
+    (** note that we have to prove some thing of the shape [b R _ _], which forces us to progress *)
+    cbn. split. 
+    -- reflexivity.
+    -- exact HR.              (** here we use the coinduction hypothesis *)
+
+  (** the coq-coinduction library provides the tactic [coinduction],
+      which automates the bureaucratic steps (in particular, it proves inf_closure automatically)
+      thus we can simply write: *)
+  Restart.
+  coinduction R HR.     
+    cbn. split. 
+    -- reflexivity.
+    -- exact HR.
+  (** overall, this proof is exactly the same as the one with native coinduction  *)
+Qed.
   
 (** elements of the final chain are equivalence relations *)
 Instance Equivalence_t {R: Chain b}: Equivalence `R.
@@ -31,58 +119,9 @@ Proof.
   - apply Transitive_chain. intros R HR x y z [] []. split. congruence. etransitivity; eauto. 
 Qed.
 
-Instance hd_bisim: Proper (gfp b ==> eq) hd.
-Proof. intros x y H. apply (gfp_pfp b), H. Qed.
-
-Instance tl_bisim: Proper (gfp b ==> gfp b) tl.
-Proof. intros x y H. apply (gfp_pfp b), H. Qed.
-
-(** * streams form the final coalgebra of the functor [nat × X] *)
-
-Canonical stream_setoid := Setoid.build stream (gfp b) Equivalence_t.
-
-Program Definition stream_coalg: Coalgebra (ex_setoids.F_times nat) :=
-  {| coalg_car := stream_setoid;
-     coalg_mor := (efun s => (hd s, tl s)) |}. 
-Next Obligation. 
-  split. by apply hd_bisim. by apply tl_bisim. 
-Qed.
-
-CoFixpoint stream_coiter {X} (f: X -> nat×X) x :=
-  cons (f x).1 (stream_coiter f (f x).2).
-
-Lemma stream_coiter_eqv {X: Setoid} (f: X -eqv-> nat×X): 
-    Proper (eqv ==> gfp b) (stream_coiter f).
-Proof.  
-  unfold Proper, respectful. coinduction R HR.
-  intros x y xy. apply f in xy.
-  split.
-  - apply xy.
-  - apply HR, xy.
-Qed.
-
-Theorem final_stream_coalg: final stream_coalg.
-Proof.
-  split.
-  - intros [X f]. esplit. exists (stream_coiter f).
-    -- apply stream_coiter_eqv.
-    -- done. 
-  - intros [X h] [f Hf] [g Hg]. cbn in *. 
-    coinduction R HR; intro x.
-    destruct (Hf x) as [fx1 fx2].
-    destruct (Hg x) as [gx1 gx2].
-    split.    
-    -- by rewrite fx1 gx1. 
-    -- by rewrite fx2 gx2. 
-Qed.
-
-
-
-(** * "constant" streams *)
-CoFixpoint c n := cons n (c 0).
 
 (** * pointwise sum and its properties *)
-CoFixpoint plus s t := cons (hd s + hd t) (plus (tl s) (tl t)).
+CoFixpoint plus s t := hd s + hd t :: plus (tl s) (tl t).
 Infix "+" := plus.
 
 Lemma plusC: forall x y, x + y ~ y + x.
@@ -92,7 +131,9 @@ Proof.
   - apply HR.
 Qed.
 
-Lemma plus_0x x: c 0 + x ~ x.
+Notation zeros := (single 0).
+
+Lemma plus_0x x: zeros + x ~ x.
 Proof.
   revert x. coinduction R HR. intro x. split; cbn.
   - reflexivity.
@@ -129,23 +170,25 @@ Qed.
 (** It be defined as easily as one could expect in Coq, 
     because of the guard condition: *)
 Fail CoFixpoint shuff s t :=
-  cons (hd s * hd t)%nat (shuff (tl s) t + shuff s (tl t)).
+  hd s * hd t :: shuff (tl s) t + shuff s (tl t).
 
 (** Here we simply assume its existence for the sake of simplicity. *)
 Parameter shuf: stream -> stream -> stream.
 Infix "@" := shuf (at level 40, left associativity).
-Axiom hd_shuf: forall s t, hd (s @ t) = (hd s * hd t)%nat.
+Axiom hd_shuf: forall s t, hd (s @ t) = hd s * hd t.
 Axiom tl_shuf: forall s t, tl (s @ t) = tl s @ t + s @ tl t.
 Ltac cbn_shuf := repeat (rewrite ?hd_shuf ?tl_shuf; simpl hd; simpl tl).
 
-Lemma shuf_0x: forall x, c 0 @ x ~ c 0.
+Lemma shuf_0x: forall x, zeros @ x ~ zeros.
 Proof.
   coinduction R HR. intros x. split; cbn_shuf.
   - nia.
   - rewrite HR. rewrite plus_0x. apply HR. 
 Qed.
 
-Lemma shuf_1x: forall x, c 1 @ x ~ x.
+Notation one := (single 1).
+
+Lemma shuf_1x: forall x, one @ x ~ x.
 Proof.
   coinduction R HR. intros x. split; cbn_shuf.
   - lia.
@@ -212,37 +255,38 @@ Qed.
 (** Like before, we cannot define it as one could expect in Coq, 
     because of the guard condition: *)
 Fail CoFixpoint mult s t :=
-  cons (hd s * hd t)%nat (mult (tl s) t + mult (c (hd s)) (tl t)).
+  hd s * hd t :: mult (tl s) t + mult (single (hd s)) (tl t).
 
 (** Here we simply assume its existence for the sake of simplicity. *)
 Parameter mult: stream -> stream -> stream.
 Infix "*" := mult.
 Axiom hd_mult: forall s t, hd (s * t) = (hd s * hd t)%nat.
-Axiom tl_mult: forall s t, tl (s * t) = tl s * t + c (hd s) * tl t.
+Axiom tl_mult: forall s t, tl (s * t) = tl s * t + (single (hd s)) * tl t.
 Ltac cbn_mult := repeat (rewrite ?hd_mult ?tl_mult; simpl hd; simpl tl).
 
-Lemma mult_0x: forall x, c 0 * x ~ c 0.
+Lemma mult_0x: forall x, zeros * x ~ zeros.
+Proof.
+  coinduction R HR. intros x. split; cbn_mult.
+  - nia.
+  - rewrite HR. rewrite plus_0x. apply HR.
+    (* in addition to [plus_chain], we need [mult_chain] for the last rewrite to work! *)
+Qed.
+
+Lemma mult_x0: forall x, x * zeros ~ zeros.
 Proof.
   coinduction R HR. intros x. split; cbn_mult.
   - nia.
   - rewrite HR. rewrite plus_0x. apply HR. 
 Qed.
 
-Lemma mult_x0: forall x, x  * c 0 ~ c 0.
-Proof.
-  coinduction R HR. intros x. split; cbn_mult.
-  - nia.
-  - rewrite HR. rewrite plus_0x. apply HR. 
-Qed.
-
-Lemma mult_1x: forall x, c 1 * x ~ x.
+Lemma mult_1x: forall x, one * x ~ x.
 Proof.
   coinduction R HR. intros x. split; cbn_mult.
   - lia.
   - rewrite mult_0x plus_0x. apply HR.
 Qed.
 
-Lemma mult_x1: forall x, x * c 1 ~ x.
+Lemma mult_x1: forall x, x * one ~ x.
 Proof.
   coinduction R HR. intros x. split; cbn_mult.
   - lia.
@@ -259,14 +303,14 @@ Proof.
     apply plus_chain. reflexivity. by rewrite plusC.
 Qed.
 
-Lemma c_plus n m: c (n+m) ~ c n + c m.
+Lemma single_plus n m: single (n+m) ~ single n + single m.
 Proof.
   coinduction R HR. clear HR. split; cbn.
   - reflexivity.
   - by rewrite plus_0x.
 Qed.
 
-Lemma c_mult n m: c (n*m) ~ c n * c m.
+Lemma single_mult n m: single (n*m) ~ single n * single m.
 Proof.
   coinduction R HR. clear HR. split; cbn_mult.
   - reflexivity.
@@ -289,34 +333,34 @@ Lemma mult_plus_x: forall x y z, (y + z) * x ~ y*x + z*x.
 Proof.
   coinduction R HR. intros x y z. split; cbn_mult.
   - nia. 
-  - rewrite c_plus 2!HR 2!plusA.
+  - rewrite single_plus 2!HR 2!plusA.
     apply plus_chain. 2: reflexivity.
     rewrite <-2plusA. 
     apply plus_chain. reflexivity. by rewrite plusC.
 Qed.
 
-Lemma multA: forall x y z, x * (y * z) ~ (x * y) * z.
+Theorem multA: forall x y z, x * (y * z) ~ (x * y) * z.
 Proof.
   coinduction R HR. intros x y z. split; cbn_mult.
   - nia.
   - rewrite mult_x_plus. rewrite 3!HR.
     rewrite plusA -mult_plus_x.
-    by rewrite c_mult.
+    by rewrite single_mult.
 Qed.
 
 (** below: commutativity of convolution product, following Rutten's
     proof *)
      
-Lemma multC_n n: forall x, c n * x ~ x * c n.
+Lemma multC_n n: forall x, single n * x ~ x * single n.
 Proof.
   coinduction R HR. intro x. split; cbn_mult.
   - nia.
   - by rewrite mult_0x mult_x0 plusC HR.
 Qed.
 
-Definition X := cons 0 (c 1).
+Definition X := 0 :: one.
 
-Theorem expand x: x ~ c (hd x) + X * tl x.
+Theorem expand x: x ~ single (hd x) + X * tl x.
 Proof.
   coinduction R HR. clear HR. split; cbn_mult.
   - nia.
@@ -339,7 +383,7 @@ Proof.
     rewrite plusC. by rewrite -HR -expand.
 Qed.
 
-Lemma multC: forall x y, x * y ~ y * x.
+Theorem multC: forall x y, x * y ~ y * x.
 Proof.
   coinduction R HR. intros x y. split.
   - cbn_mult; nia.
@@ -350,4 +394,49 @@ Proof.
     rewrite multA multC_X.
     rewrite {3}(expand x). rewrite mult_x_plus.
     by rewrite multA. 
+Qed.
+
+
+(** * closing the loop: streams form the final coalgebra of the functor [nat × X] *)
+
+Canonical stream_setoid := Setoid.build stream bisim Equivalence_t.
+
+Program Definition stream_coalg: Coalgebra (ex_setoids.F_times nat) :=
+  {| coalg_car := stream_setoid;
+     coalg_mor := (efun s => (hd s, tl s)) |}. 
+Next Obligation. 
+  split. by apply hd_bisim. by apply tl_bisim. 
+Qed.
+
+CoFixpoint stream_coiter {X} (f: X -> nat×X) x :=
+  cons (f x).1 (stream_coiter f (f x).2).
+
+Lemma stream_coiter_eqv {X: Setoid} (f: X -eqv-> nat×X): 
+    Proper (eqv ==> bisim) (stream_coiter f).
+Proof.  
+  unfold Proper, respectful.
+  coinduction R HR.
+  intros x y xy. apply f in xy.
+  split.
+  - apply xy.
+  - apply HR, xy.
+Qed.
+
+Theorem final_stream_coalg: final stream_coalg.
+Proof.
+  split.
+  - intros [X f]. esplit. exists (stream_coiter f).
+    -- apply stream_coiter_eqv.
+    -- done. 
+  - intros [X h] [f Hf] [g Hg]. cbn in *. 
+    coinduction R HR; intro x.
+    destruct (Hf x) as [fx1 fx2].
+    destruct (Hg x) as [gx1 gx2].
+    split.    
+    -- by rewrite fx1 gx1. 
+    -- by rewrite fx2 gx2.       
+    (** such a proof would not be guarded with native coinduction, due
+    to the implicit upto technique used in the last line (rewriting to
+    work modulo bisimilarity before applying the coinduction
+    hypothesis) *)
 Qed.
