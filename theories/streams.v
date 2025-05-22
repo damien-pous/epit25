@@ -173,7 +173,7 @@ Lemma zeros_const: zeros ~ 0 :: zeros.
 Proof.
   coinduction R HR. split; cbn.
   - reflexivity.
-  - reflexivity.           (* know we do *)
+  - reflexivity.           (* now we do *)
 Qed.
 
 
@@ -443,22 +443,32 @@ Proof.
 Qed.
 
 
-(** * closing the loop: streams form the final coalgebra of the functor [nat × X] *)
+(** * Closing the loop: streams form the final coalgebra of the functor [nat × X] *)
 
+
+(** We need to take a quotient (streams modulo bisimilarity);
+    in order to be axiom-free we move the the category of setoids and setoid morphisms  *)
 From epit Require ex_setoids.
 
+(** We declare bisimilarity as the canonical setoid on streams *)
 Canonical stream_setoid := Setoid.build stream bisim Equivalence_chain_b.
 
+(** Streams form a coalgebra *)
 Program Definition stream_coalg: Coalgebra (ex_setoids.F_times nat) :=
   {| coalg_car := stream_setoid;
      coalg_mor := (efun s => (hd s, tl s)) |}. 
-Next Obligation. 
+Next Obligation.
+  (** since we moved to the category of setoids,
+      we have to show that the function [fun s => (hd s,tl s)] maps bisimilar streams to equivalent values.
+      whence the strange "efun" above, and the proof obligation below *)
   split. by apply hd_bisim. by apply tl_bisim. 
 Qed.
 
+(** We obtain the required arrow from a given coalgebra by corecursion *)
 CoFixpoint stream_coiter {X} (f: X -> nat×X) x :=
   cons (f x).1 (stream_coiter f (f x).2).
 
+(** Again, since we are in the category of setoids, we have to show that the above definition respects equivalences *)
 Lemma stream_coiter_eqv {X: Setoid} (f: X -eqv-> nat×X): 
     Proper (eqv ==> bisim) (stream_coiter f).
 Proof.  
@@ -470,13 +480,17 @@ Proof.
   - apply HR, xy.
 Qed.
 
+(** We can finally prove that we have a final coalgebra *)
 Theorem final_stream_coalg: final stream_coalg.
 Proof.
   split.
-  - intros [X f]. esplit. exists (stream_coiter f).
+  - (** Existence *)
+    intros [X f]. esplit. exists (stream_coiter f).
     -- apply stream_coiter_eqv.
-    -- done. 
-  - intros [X h] [f Hf] [g Hg]. cbn in *. 
+    -- done. (** the fact that we have a coalgebra homomorphism holds by definition *)
+  - (** Uniqueness *)
+    intros [X h] [f Hf] [g Hg]. cbn in *.
+    (** by coinduction, of course... *)
     coinduction R HR; intro x.
     destruct (Hf x) as [fx1 fx2].
     destruct (Hg x) as [gx1 gx2].
