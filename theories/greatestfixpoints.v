@@ -27,22 +27,18 @@ Section s.
  Proof.
    apply sup_spec; cbn.
    intros x Hx.
-   rewrite Hx. 
-   apply b.
-   apply leq_xsup.
-   assumption. 
- Qed.
+   (* feasible in four tactics *)
+ Admitted.
  
  (** It is a fixpoint (and by definition, the largest one) *) 
  Theorem fixpoint_gfp: gfp == b gfp.
  Proof.
    apply antisym.
-   - apply postfixpoint_gfp.
-   - apply leq_xsup.
-     apply b.
-     apply postfixpoint_gfp.
+   (* feasible in four [apply] *)
+   - admit.
+   - admit.
      (* the second part if this proof actually is (Co)Lambek's lemma *)
- Qed.
+ Admitted.
 End s.
 End KnasterTarski. 
 
@@ -89,15 +85,12 @@ Section s.
  (** It is a postfixpoint *)
  Lemma postfixpoint_gfp: gfp <= b gfp.
  Proof.
-   apply leq_infx.
-   apply Cb.
-   apply Cinf.
-   reflexivity.
- Qed.
+ Admitted.
 
  (** [gfp] belongs to the chain (by definition) *)
  Lemma chain_gfp: C gfp.
- Proof. by apply Cinf. Qed.
+ Proof.
+ Admitted.
 
  (** Hence any property holding universally on the chain holds for [gfp] *)
  Corollary gfp_prop (P: X -> Prop): (forall c, C c -> P c) -> P gfp.
@@ -115,27 +108,30 @@ Section s.
  Lemma prefixpoint_chain: forall c, C c -> b c <= c.
  Proof.
    induction 1 as [D DC IHD|c IHc].
-   - apply inf_spec=>d Dd. transitivity (b d).
+   - (* here we show that the predicate [b c <= c] is inf-closed *)
+     apply inf_spec=>d Dd. transitivity (b d).
      by apply b, leq_infx. by apply IHD. 
-   - by apply b.
- Qed.
+   - (* it remains to show that it is closed under [b] *)
+     admit.
+ Admitted.
 
  (** Hence [gfp] is a fixpoint  *)
  Theorem fixpoint_gfp: gfp == b gfp.
  Proof.
    apply antisym.
-   - apply postfixpoint_gfp.
-   - apply prefixpoint_chain, chain_gfp.
- Qed.
+   (* one line each *)
+ Admitted.
 
  (** And in fact the largest (post)-fixpoint (by tower induction again) *)
  Theorem largest_gfp x: x <= b x -> x <= gfp.
  Proof.
    intro Hx. apply gfp_prop. 
    induction 1 as [D DC IHD|c Cc IHc].
-   - apply inf_spec=> d Dd. apply IHD, Dd.
-   - rewrite Hx. by apply b.
- Qed.
+   - (* inf-closure *)
+     apply inf_spec=> d Dd. apply IHD, Dd.
+   - (* closure under [b] *)
+     admit.
+ Admitted.
 
 End s.
 
