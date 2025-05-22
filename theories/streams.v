@@ -488,3 +488,39 @@ Proof.
     work modulo bisimilarity before applying the coinduction
     hypothesis) *)
 Qed.
+
+
+(** * Conclusion
+
+  1. Inductives in Rocq correspond to initial algebras
+     nat    = μX.1+X
+     list A = μX.1+A×X
+     trees  = μX.list X
+     ...
+
+  2. CoInductives in Rocq do not exactly correspond to final coalgebras
+     (one can prove existence but not unicity of the required coalgebra homomorphisms)
+     We can get final coalgebras out of them if we quotient by the appropriate notion of bisimilarity
+
+  3. Bisimilarity can be defined
+     - as a native coinductive predicate, but then we suffer with the guard condition in proofs (not illustrated here for lack of time, trust us...)
+     - as the greatest fixpoint of a monotone map [b]
+
+  4. The coinduction library defines such a fixpoint as the least element of the chain of [b]
+     This gives a powerful `tower induction principle':
+     to prove that a property holds for all elements of the chain, prove that it is
+     - inf-closed (easy+boring)
+     - closed under [b] (where the interesting things happen)
+
+  5. Thus we can systematically state and prove universal properties of the chain rather than just bisimilarity (all elements are equivalence relations, congruences, ...).
+     Doing so we get access to powerful up-to techniques (bisimulation up-to equivalence, up-to congruence, ...)
+
+  6. This idea works very smoothly in Rocq, for arbitrary coinductive predicates.
+
+     It remains to deal with coinductive *datatypes*
+     For instance, the guard condition makes it difficult to define the shuffle/convolution product.
+
+     It is however not clear how scale the idea of tower induction: while Prop is a complete lattice, Type is not.
+     We are working on other approaches, based on coalgebras, containers and polynomial functors.
+
+ *)
