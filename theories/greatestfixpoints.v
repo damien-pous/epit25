@@ -37,10 +37,45 @@ Section s.
    (* feasible in four [apply] *)
    - admit.
    - admit.
-     (* the second part if this proof actually is (Co)Lambek's lemma *)
+     (* the second part of this proof actually is (Co)Lambek's lemma *)
  Admitted.
 End s.
 End KnasterTarski. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 (** * 2. Kleene / final chain *)
@@ -82,6 +117,40 @@ Section s.
  (** The greatest fixpoint can be defined as the least element of the final chain *)
  Definition gfp := inf C.
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
  (** It is a postfixpoint *)
  Lemma postfixpoint_gfp: gfp <= b gfp.
  Proof.
@@ -134,6 +203,37 @@ Section s.
  Admitted.
 
 End s.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 (** * Notes
 
