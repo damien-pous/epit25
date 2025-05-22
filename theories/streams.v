@@ -650,24 +650,22 @@ Next Obligation.
   (** since we moved to the category of setoids,
       we have to show that the function [fun s => (hd s,tl s)] maps bisimilar streams to equivalent values.
       whence the strange "efun" above, and the proof obligation below *)
-  split. by apply hd_bisim. by apply tl_bisim. 
-Qed.
+  split.
+  (** hint: two tactics, we have already proven two lemmas precisely for that *)
+Admitted.
 
 (** We obtain the required arrow from a given coalgebra by corecursion *)
 CoFixpoint stream_coiter {X} (f: X -> nat×X) x :=
   cons (f x).1 (stream_coiter f (f x).2).
 
-(** Again, since we are in the category of setoids, we have to show that the above definition respects equivalences *)
+(** Again, since we are in the category of setoids,
+    we have to show that the above definition respects equivalences *)
 Lemma stream_coiter_eqv {X: Setoid} (f: X -eqv-> nat×X): 
     Proper (eqv ==> bisim) (stream_coiter f).
 Proof.  
   unfold Proper, respectful.
-  coinduction R HR.
-  intros x y xy. apply f in xy.
-  split.
-  - apply xy.
-  - apply HR, xy.
-Qed.
+  (** hint: five easy lines; proceed by coinduction *)
+Admitted.
 
 (** We can finally prove that we have a final coalgebra *)
 Theorem final_stream_coalg: final stream_coalg.
@@ -680,17 +678,10 @@ Proof.
   - (** Uniqueness *)
     intros [X h] [f Hf] [g Hg]. cbn in *.
     (** by coinduction, of course... *)
-    coinduction R HR; intro x.
-    destruct (Hf x) as [fx1 fx2].
-    destruct (Hg x) as [gx1 gx2].
-    split.    
-    -- by rewrite fx1 gx1. 
-    -- by rewrite fx2 gx2.       
-    (** such a proof would not be guarded with native coinduction, due
-    to the implicit upto technique used in the last line (rewriting to
-    work modulo bisimilarity before applying the coinduction
-    hypothesis) *)
-Qed.
+Admitted.
+    (** such a proof would not be guarded with native coinduction, because we implicitly need an upto technique (rewriting to work modulo bisimilarity before applying the coinduction hypothesis) *)
+
+
 
 
 (** * Conclusion
